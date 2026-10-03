@@ -1,0 +1,47 @@
+name: kardex
+description: >
+  Kardex — aplicación móvil de perfil médico de emergencia con código QR
+  y recordatorio inteligente de medicamentos.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # Autenticación y backend (RF-01, RF-02, RF-19, RF-20)
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.3
+
+  # Almacenamiento local (RNF-02, perfil médico, medicamentos)
+  sqflite: ^2.3.3+1
+  path: ^1.9.0
+
+  # Código QR (RF-06, RF-07)
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+
+  # Notificaciones locales (RF-11, RF-14, RF-18)
+  flutter_local_notifications: ^18.0.1
+
+  # Geofencing (RF-17, RF-18)
+  geofence_service: ^5.0.0
+
+  # Permisos (RF-22)
+  permission_handler: ^11.3.1
+
+  # Gestión de estado
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
