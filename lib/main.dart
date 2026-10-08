@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/register_screen.dart';
+import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 
 void main() {
@@ -25,7 +25,7 @@ class KardexApp extends StatelessWidget {
         colorSchemeSeed: Colors.blue,
         useMaterial3: true,
       ),
-      home: RegisterScreen(authService: authService),
+      home: LoginScreen(authService: authService),
     );
   }
 }

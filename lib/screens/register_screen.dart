@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import 'login_screen.dart';
 
-/// Pantalla de registro (RF-01).
-///
-/// Captura cuenta (nombre, correo, contraseña + confirmación, teléfono,
-/// rol) y, si el rol elegido es Paciente, además la información médica
-/// inicial (tipo de sangre, hasta 2 alergias, hasta 2 condiciones y un
-/// contacto de emergencia obligatorio), todo en el mismo formulario,
-/// como en el mockup.
+/// Pantalla de registro (RF-01), igual al mockup oficial: correo,
+/// contraseña (con checklist de reglas en vivo) y rol. El nombre, el
+/// teléfono y la información médica (RF-04) se completan después,
+/// desde otra pantalla.
 class RegisterScreen extends StatefulWidget {
   final AuthService authService;
 
@@ -23,93 +21,59 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // Cuenta
-  final _fullNameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _confirmPasswordCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
   UserRole _role = UserRole.paciente;
 
-  // Información médica (solo si _role == paciente)
-  final _bloodTypeOptions = const [
-    'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
-  ];
-  String? _bloodType;
-  final _allergy1Ctrl = TextEditingController();
-  final _allergy2Ctrl = TextEditingController();
-  final _condition1Ctrl = TextEditingController();
-  final _condition2Ctrl = TextEditingController();
-  final _emergencyNameCtrl = TextEditingController();
-  final _emergencyPhoneCtrl = TextEditingController();
-
   bool _obscurePassword = true;
-  bool _obscureConfirm = true;
   bool _submitting = false;
   String? _submitError;
 
-  bool get _isPaciente => _role == UserRole.paciente;
+  // Estado del checklist de contraseña, se recalcula en cada cambio.
+  bool _hasMinMaxLength = false;
+  bool _hasUpper = false;
+  bool _hasLower = false;
+  bool _hasDigit = false;
+  bool _hasSpecial = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordCtrl.addListener(_updatePasswordChecklist);
+  }
 
   @override
   void dispose() {
-    _fullNameCtrl.dispose();
+    _passwordCtrl.removeListener(_updatePasswordChecklist);
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
-    _confirmPasswordCtrl.dispose();
-    _phoneCtrl.dispose();
-    _allergy1Ctrl.dispose();
-    _allergy2Ctrl.dispose();
-    _condition1Ctrl.dispose();
-    _condition2Ctrl.dispose();
-    _emergencyNameCtrl.dispose();
-    _emergencyPhoneCtrl.dispose();
     super.dispose();
+  }
+
+  void _updatePasswordChecklist() {
+    final v = _passwordCtrl.text;
+    setState(() {
+      _hasMinMaxLength = v.length >= 8 && v.length <= 20;
+      _hasUpper = RegExp(r'[A-Z]').hasMatch(v);
+      _hasLower = RegExp(r'[a-z]').hasMatch(v);
+      _hasDigit = RegExp(r'\d').hasMatch(v);
+      _hasSpecial =
+          RegExp(r'[!@#\$%\^&\*\(\)\-_=\+\[\]{};:,.<>?/]').hasMatch(v);
+    });
   }
 
   Future<void> _submit() async {
     setState(() => _submitError = null);
 
     final isValid = _formKey.currentState?.validate() ?? false;
-
-    // Validación adicional de tipo de sangre: no es un TextFormField
-    // normal, así que se valida aparte (RF-01: obligatorio si es paciente).
-    final bloodTypeError =
-        _isPaciente ? Validators.bloodType(_bloodType) : null;
-
-    if (!isValid || bloodTypeError != null) {
-      if (bloodTypeError != null) {
-        setState(() => _submitError = bloodTypeError);
-      }
-      return;
-    }
+    if (!isValid) return;
 
     setState(() => _submitting = true);
 
-    final medicalProfile = _isPaciente
-        ? MedicalProfile(
-            bloodType: _bloodType!,
-            allergies: [_allergy1Ctrl.text, _allergy2Ctrl.text]
-                .map((e) => e.trim())
-                .where((e) => e.isNotEmpty)
-                .toList(),
-            conditions: [_condition1Ctrl.text, _condition2Ctrl.text]
-                .map((e) => e.trim())
-                .where((e) => e.isNotEmpty)
-                .toList(),
-            emergencyContact: EmergencyContact(
-              fullName: _emergencyNameCtrl.text.trim(),
-              phone: _emergencyPhoneCtrl.text.trim(),
-            ),
-          )
-        : null;
-
     final data = RegisterData(
-      fullName: _fullNameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
-      phone: _phoneCtrl.text.trim(),
       role: _role,
-      medicalProfile: medicalProfile,
     );
 
     final result = await widget.authService.register(data);
@@ -121,7 +85,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cuenta creada correctamente')),
       );
-      // TODO: navegar a la pantalla principal según el rol (RF-03).
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(authService: widget.authService),
+        ),
+      );
     } else {
       setState(() => _submitError = result.errorMessage);
     }
@@ -130,7 +98,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Página de registro')),
+      appBar: AppBar(
+        leading: BackButton(onPressed: () => Navigator.of(context).maybePop()),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -140,32 +110,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Crear usuario',
+                Text('Crear cuenta',
                     style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 4),
                 Text(
-                  'Ingresa tus datos para crear tu perfil médico',
+                  'Completa la información para registrarte',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: Colors.grey[600],
                       ),
                 ),
-                const SizedBox(height: 20),
-
-                _label('Nombre completo'),
-                TextFormField(
-                  controller: _fullNameCtrl,
-                  decoration: _inputDecoration('Enter your full name'),
-                  validator: Validators.fullName,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
                 _label('Correo electrónico'),
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
-                  decoration:
-                      _inputDecoration('your.email@example.com'),
+                  decoration: _inputDecoration('usuario@dominio.com')
+                      .copyWith(prefixIcon: const Icon(Icons.mail_outline)),
                   validator: Validators.email,
                   textInputAction: TextInputAction.next,
                 ),
@@ -176,6 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordCtrl,
                   obscureText: _obscurePassword,
                   decoration: _inputDecoration('••••••••').copyWith(
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword
                           ? Icons.visibility_off
@@ -185,38 +147,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   validator: Validators.password,
-                  textInputAction: TextInputAction.next,
+                  textInputAction: TextInputAction.done,
                 ),
-                const SizedBox(height: 16),
-
-                _label('Confirmar contraseña'),
-                TextFormField(
-                  controller: _confirmPasswordCtrl,
-                  obscureText: _obscureConfirm,
-                  decoration: _inputDecoration('••••••••').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(_obscureConfirm
-                          ? Icons.visibility_off
-                          : Icons.visibility),
-                      onPressed: () => setState(
-                          () => _obscureConfirm = !_obscureConfirm),
-                    ),
-                  ),
-                  validator:
-                      Validators.confirmPassword(() => _passwordCtrl.text),
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
-
-                _label('Número de teléfono'),
-                TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: _inputDecoration('3001234567'),
-                  validator: Validators.phone,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
+                _passwordChecklist(),
+                const SizedBox(height: 20),
 
                 _label('Rol'),
                 SegmentedButton<UserRole>(
@@ -235,75 +170,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     setState(() => _role = selection.first);
                   },
                 ),
-
-                if (_isPaciente) ...[
-                  const SizedBox(height: 28),
-                  Text('Información médica',
-                      style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 16),
-
-                  _label('Tipo de sangre'),
-                  DropdownButtonFormField<String>(
-                    initialValue: _bloodType,
-                    decoration: _inputDecoration('Ej. O+'),
-                    items: _bloodTypeOptions
-                        .map((t) => DropdownMenuItem(
-                              value: t,
-                              child: Text(t),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => _bloodType = v),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _label('Alergias 1'),
-                  TextFormField(
-                    controller: _allergy1Ctrl,
-                    decoration: _inputDecoration('Ej. penicilina'),
-                    validator: Validators.freeTextMax(200),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _label('Alergias 2'),
-                  TextFormField(
-                    controller: _allergy2Ctrl,
-                    decoration: _inputDecoration('Ej. penicilina'),
-                    validator: Validators.freeTextMax(200),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _label('Condiciones médicas 1'),
-                  TextFormField(
-                    controller: _condition1Ctrl,
-                    decoration: _inputDecoration('Ej. Ninguna registrada'),
-                    validator: Validators.freeTextMax(300),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _label('Condiciones médicas 2'),
-                  TextFormField(
-                    controller: _condition2Ctrl,
-                    decoration: _inputDecoration('Ej. Ninguna registrada'),
-                    validator: Validators.freeTextMax(300),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _label('Contacto de emergencia'),
-                  TextFormField(
-                    controller: _emergencyNameCtrl,
-                    decoration: _inputDecoration('Nombre completo'),
-                    validator: Validators.fullName,
-                  ),
-                  const SizedBox(height: 16),
-
-                  _label('Teléfono de emergencia'),
-                  TextFormField(
-                    controller: _emergencyPhoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: _inputDecoration('3001234567'),
-                    validator: Validators.phone,
-                  ),
-                ],
 
                 if (_submitError != null) ...[
                   const SizedBox(height: 16),
@@ -327,23 +193,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Registrar usuario'),
+                        : const Text('Registrarse'),
                   ),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
+                const SizedBox(height: 16),
+                Center(
+                  child: TextButton(
                     onPressed: _submitting
                         ? null
-                        : () => Navigator.of(context).maybePop(),
-                    child: const Text('Volver al inicio'),
+                        : () => Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => LoginScreen(
+                                    authService: widget.authService),
+                              ),
+                            ),
+                    child: RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context).style,
+                        children: const [
+                          TextSpan(text: '¿Ya tienes una cuenta? '),
+                          TextSpan(
+                            text: 'Inicia sesión',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _passwordChecklist() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _checkItem('8-20 caracteres', _hasMinMaxLength),
+        _checkItem('1 mayúscula', _hasUpper),
+        _checkItem('1 minúscula', _hasLower),
+        _checkItem('1 número', _hasDigit),
+        _checkItem('1 carácter especial (ej. !@#\$%)', _hasSpecial),
+      ],
+    );
+  }
+
+  Widget _checkItem(String text, bool satisfied) {
+    final color = satisfied ? Colors.green : Colors.grey[600];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Icon(
+            satisfied ? Icons.check_circle : Icons.circle_outlined,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 13, color: color)),
+        ],
       ),
     );
   }

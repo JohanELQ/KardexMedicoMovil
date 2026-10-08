@@ -55,37 +55,47 @@ class MedicalProfile {
 }
 
 /// Datos que recoge el formulario de registro (RF-01).
+///
+/// Según el mockup oficial, el registro solo pide cuenta (correo,
+/// contraseña) y rol. El nombre completo, el teléfono y la información
+/// médica (RF-04) se completan en otra pantalla, después de iniciar
+/// sesión — no aquí.
 class RegisterData {
-  final String fullName;
   final String email;
   final String password;
-  final String phone;
   final UserRole role;
-  final MedicalProfile? medicalProfile; // solo cuando role == paciente
 
   const RegisterData({
-    required this.fullName,
     required this.email,
     required this.password,
-    required this.phone,
     required this.role,
-    this.medicalProfile,
   });
 }
 
+/// Datos que recoge el formulario de inicio de sesión (RF-02).
+class LoginData {
+  final String email;
+  final String password;
+
+  const LoginData({required this.email, required this.password});
+}
+
 /// Usuario ya autenticado dentro de la app.
+///
+/// `fullName` y `phone` quedan vacíos hasta que el usuario complete su
+/// información personal más adelante (no se piden en el registro).
 class AppUser {
   final String uid;
-  final String fullName;
   final String email;
-  final String phone;
   final UserRole role;
+  final String fullName;
+  final String phone;
 
   const AppUser({
     required this.uid,
-    required this.fullName,
     required this.email,
-    required this.phone,
     required this.role,
+    this.fullName = '',
+    this.phone = '',
   });
 }

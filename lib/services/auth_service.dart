@@ -9,36 +9,110 @@ class RegisterResult {
   const RegisterResult.error(this.errorMessage) : success = false;
 }
 
+/// Resultado de un intento de inicio de sesión (RF-02).
+class LoginResult {
+  final bool success;
+  final AppUser? user;
+  final String? errorMessage;
+
+  const LoginResult.ok(this.user) : success = true, errorMessage = null;
+  const LoginResult.error(this.errorMessage)
+      : success = false,
+        user = null;
+}
+
 /// Contrato de autenticación. La implementación real con Firebase
 /// (firebase_auth + cloud_firestore / sqflite) se conecta aquí sin
-/// cambiar la pantalla de registro.
+/// cambiar las pantallas de registro/login.
 ///
-/// RF-01: crear cuenta con correo/contraseña y guardar nombre, teléfono,
-/// rol y, si es paciente, el perfil médico inicial en la misma
-/// operación.
+/// RF-01: crear cuenta con correo, contraseña y rol.
+/// RF-02: iniciar sesión validando credenciales, con bloqueo temporal
+/// tras 5 intentos fallidos consecutivos.
 abstract class AuthService {
   Future<RegisterResult> register(RegisterData data);
+  Future<LoginResult> login(LoginData data);
 }
 
 /// Implementación en memoria para desarrollar y probar la UI sin
-/// depender todavía de Firebase. Simula la regla "correo ya registrado"
-/// de RF-01.
+/// depender todavía de Firebase.
+///
+/// Simula:
+/// - RF-01: rechazo de correo ya registrado.
+/// - RF-02: validación de credenciales, bloqueo de 15 minutos tras 5
+///   intentos fallidos consecutivos para la misma cuenta, y mensaje de
+///   error genérico que no revela cuál campo fue el incorrecto.
 class MockAuthService implements AuthService {
-  final Set<String> _registeredEmails = {};
+  // email (en minúsculas) -> contraseña, simulando la base de usuarios.
+  final Map<String, String> _accounts = {};
+  final Map<String, UserRole> _roles = {};
+
+  // email -> número de intentos fallidos consecutivos.
+  final Map<String, int> _failedAttempts = {};
+  // email -> momento hasta el cual la cuenta queda bloqueada.
+  final Map<String, DateTime> _lockedUntil = {};
+
+  static const _maxAttempts = 5;
+  static const _lockoutDuration = Duration(minutes: 15);
 
   @override
   Future<RegisterResult> register(RegisterData data) async {
     await Future.delayed(const Duration(milliseconds: 600));
 
     final emailKey = data.email.trim().toLowerCase();
-    if (_registeredEmails.contains(emailKey)) {
+    if (_accounts.containsKey(emailKey)) {
       return const RegisterResult.error(
         'Ya existe una cuenta registrada con este correo electrónico',
       );
     }
 
-    _registeredEmails.add(emailKey);
+    _accounts[emailKey] = data.password;
+    _roles[emailKey] = data.role;
     return const RegisterResult.ok();
+  }
+
+  @override
+  Future<LoginResult> login(LoginData data) async {
+    await Future.delayed(const Duration(milliseconds: 600));
+
+    final emailKey = data.email.trim().toLowerCase();
+
+    final lockedUntil = _lockedUntil[emailKey];
+    if (lockedUntil != null) {
+      if (DateTime.now().isBefore(lockedUntil)) {
+        final minutesLeft =
+            lockedUntil.difference(DateTime.now()).inMinutes + 1;
+        return LoginResult.error(
+          'Demasiados intentos fallidos. Intenta de nuevo en '
+          '$minutesLeft minuto(s).',
+        );
+      }
+      // Ya pasó el tiempo de bloqueo: se reinicia el contador.
+      _lockedUntil.remove(emailKey);
+      _failedAttempts.remove(emailKey);
+    }
+
+    final storedPassword = _accounts[emailKey];
+    final isValid = storedPassword != null && storedPassword == data.password;
+
+    if (!isValid) {
+      final attempts = (_failedAttempts[emailKey] ?? 0) + 1;
+      _failedAttempts[emailKey] = attempts;
+
+      if (attempts >= _maxAttempts) {
+        _lockedUntil[emailKey] = DateTime.now().add(_lockoutDuration);
+      }
+
+      // RF-02: mensaje genérico, sin indicar cuál campo fue el erróneo.
+      return const LoginResult.error('Correo o contraseña incorrectos');
+    }
+
+    _failedAttempts.remove(emailKey);
+    _lockedUntil.remove(emailKey);
+
+    final role = _roles[emailKey] ?? UserRole.paciente;
+    return LoginResult.ok(
+      AppUser(uid: emailKey, email: data.email.trim(), role: role),
+    );
   }
 }
 
@@ -68,11 +142,7 @@ class MockAuthService implements AuthService {
 ///       );
 ///
 ///       await _db.collection('users').doc(credential.user!.uid).set({
-///         'fullName': data.fullName.trim(),
-///         'phone': data.phone.trim(),
 ///         'role': data.role.name,
-///         if (data.medicalProfile != null)
-///           'medicalProfile': data.medicalProfile!.toMap(),
 ///       });
 ///
 ///       return const RegisterResult.ok();
@@ -83,6 +153,30 @@ class MockAuthService implements AuthService {
 ///         );
 ///       }
 ///       return RegisterResult.error(e.message ?? 'No se pudo completar el registro');
+///     }
+///   }
+///
+///   @override
+///   Future<LoginResult> login(LoginData data) async {
+///     try {
+///       final credential = await _auth.signInWithEmailAndPassword(
+///         email: data.email.trim(),
+///         password: data.password,
+///       );
+///       final doc = await _db.collection('users').doc(credential.user!.uid).get();
+///       final role = doc.data()?['role'] == 'personalMedico'
+///           ? UserRole.personalMedico
+///           : UserRole.paciente;
+///       return LoginResult.ok(AppUser(
+///         uid: credential.user!.uid,
+///         email: data.email.trim(),
+///         role: role,
+///       ));
+///     } on FirebaseAuthException catch (_) {
+///       // Nota: el bloqueo tras 5 intentos fallidos (RF-02) con Firebase
+///       // real se implementa guardando los intentos en Firestore, ya
+///       // que Firebase Auth no lo hace de forma nativa.
+///       return const LoginResult.error('Correo o contraseña incorrectos');
 ///     }
 ///   }
 /// }
