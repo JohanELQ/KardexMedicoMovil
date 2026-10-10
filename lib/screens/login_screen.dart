@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import 'welcome_screen.dart';
 
@@ -156,10 +157,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: TextButton(
                     onPressed: _submitting
                         ? null
-                        : () => ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    'La recuperación de contraseña (RF-19) todavía no está implementada'),
+                        : () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ForgotPasswordScreen(
+                                    authService: widget.authService),
                               ),
                             ),
                     child: const Text('¿Olvidaste tu contraseña?'),

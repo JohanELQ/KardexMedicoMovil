@@ -28,9 +28,13 @@ class LoginResult {
 /// RF-01: crear cuenta con correo, contraseña y rol.
 /// RF-02: iniciar sesión validando credenciales, con bloqueo temporal
 /// tras 5 intentos fallidos consecutivos.
+/// RF-19: solicitar recuperación de contraseña. No devuelve si el
+/// correo existe o no en el sistema — la pantalla siempre muestra el
+/// mismo mensaje de confirmación, sin importar el resultado interno.
 abstract class AuthService {
   Future<RegisterResult> register(RegisterData data);
   Future<LoginResult> login(LoginData data);
+  Future<void> requestPasswordReset(String email);
 }
 
 /// Implementación en memoria para desarrollar y probar la UI sin
@@ -113,6 +117,15 @@ class MockAuthService implements AuthService {
     return LoginResult.ok(
       AppUser(uid: emailKey, email: data.email.trim(), role: role),
     );
+  }
+
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    // No se hace nada visible distinto si el correo existe o no: eso es
+    // justamente lo que pide RF-19. En la implementación real con
+    // Firebase, aquí se llamaría sendPasswordResetEmail() dentro de un
+    // try/catch que ignore el error "user-not-found" por la misma razón.
   }
 }
 

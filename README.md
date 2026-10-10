@@ -45,9 +45,15 @@ oficial (18 pantallas) y a la especificación de requerimientos.
   médico (mockup 6): tarjeta "Escanear código QR" (el escaneo real con
   `mobile_scanner` se conecta en RF-07) y accesos rápidos.
 - `lib/screens/splash_screen.dart` — pantalla de inicio (mockup 1):
-  fondo oscuro, ícono de corazón, título "Kardex" y el tagline. Pasa
-  automáticamente al login después de 2 segundos (o al tocar la
-  pantalla).
+  fondo oscuro, ícono de corazón, título "Kardex", "Bienvenido a
+  Kardex" y el tagline. Pasa automáticamente al login después de 2
+  segundos (o al tocar la pantalla).
+- `lib/screens/forgot_password_screen.dart` — recuperación de
+  contraseña (RF-19): pide el correo y, sin importar si existe o no en
+  el sistema, siempre muestra el mismo mensaje de confirmación ("Si el
+  correo está registrado, te enviamos un enlace..."), tal como exige el
+  requerimiento. Se accede desde "¿Olvidaste tu contraseña?" en el
+  login.
 - `lib/main.dart` — arranca la app en el splash, igual que el flujo del
   mockup (splash → login → bienvenida → inicio según el rol).
 
@@ -90,10 +96,11 @@ Firebase para probarlas. Cuando quieras conectar el backend real:
 - **RF-02** — Inicio de sesión, con bloqueo tras 5 intentos fallidos.
 - **RF-03** — Navegación según el rol tras iniciar sesión, sin permitir
   acceso a las funciones del rol contrario.
+- **RF-19** — Recuperación de contraseña: solicita el correo y nunca
+  revela si existe o no una cuenta asociada.
 - **RF-24** (parcial) — Validación de tipo de dato por campo: correo y
   contraseña (oculta, con `obscureText`).
 
 Pendientes para una próxima entrega: RF-04 (perfil médico, en pantalla
 aparte), RF-06/RF-07 (QR real y escaneo real), RF-10 a RF-13
-(medicamentos reales), RF-19 (recuperar contraseña, ya tiene el enlace
-pero falta la lógica), y el resto de RF-24 para las demás pantallas.
+(medicamentos reales), y el resto de RF-24 para las demás pantallas.
