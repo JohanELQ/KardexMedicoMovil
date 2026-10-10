@@ -44,9 +44,12 @@ oficial (18 pantallas) y a la especificación de requerimientos.
 - `lib/screens/medical_staff_home_screen.dart` — inicio del personal
   médico (mockup 6): tarjeta "Escanear código QR" (el escaneo real con
   `mobile_scanner` se conecta en RF-07) y accesos rápidos.
-- `lib/main.dart` — arranca la app en la pantalla de inicio de sesión,
-  igual que el flujo del mockup (splash → login → bienvenida → inicio
-  según el rol).
+- `lib/screens/splash_screen.dart` — pantalla de inicio (mockup 1):
+  fondo oscuro, ícono de corazón, título "Kardex" y el tagline. Pasa
+  automáticamente al login después de 2 segundos (o al tocar la
+  pantalla).
+- `lib/main.dart` — arranca la app en el splash, igual que el flujo del
+  mockup (splash → login → bienvenida → inicio según el rol).
 
 ## Qué cambió respecto a la primera entrega
 
