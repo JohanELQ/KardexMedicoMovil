@@ -1,8 +1,8 @@
-# Kardex — Registro e inicio de sesión (RF-01, RF-02)
+# Kardex — Registro, inicio de sesión y navegación por rol (RF-01, RF-02, RF-03)
 
-Código del proyecto Flutter de Kardex: pantallas de registro e inicio
-de sesión, ajustadas al mockup oficial (18 pantallas) y a la
-especificación de requerimientos.
+Código del proyecto Flutter de Kardex: pantallas de registro, inicio de
+sesión y las pantallas de inicio según el rol, ajustadas al mockup
+oficial (18 pantallas) y a la especificación de requerimientos.
 
 ## Qué incluye esta entrega
 
@@ -19,18 +19,34 @@ especificación de requerimientos.
   - `register()`: simula "correo ya registrado" (RF-01).
   - `login()`: valida credenciales, bloquea la cuenta 15 minutos tras
     5 intentos fallidos consecutivos, y muestra un mensaje genérico de
-    error sin indicar cuál campo falló (RF-02).
-  - Plantilla comentada de la implementación real con Firebase.
+    error sin indicar cuál campo falló (RF-02). Si el login es exitoso,
+    devuelve un `AppUser` con el rol guardado en el registro.
 - `lib/screens/register_screen.dart` — pantalla "Crear cuenta": correo,
   contraseña (con checklist de reglas en vivo) y rol. Coincide con el
   mockup 3.
 - `lib/screens/login_screen.dart` — pantalla "Inicia sesión en tu
   cuenta": correo, contraseña, enlace de contraseña olvidada, botón de
   iniciar sesión, acceso para crear cuenta y botones de Google/Apple
-  (visibles pero deshabilitados, como en el mockup 2 — se conectarán
-  más adelante).
+  (visibles pero deshabilitados, como en el mockup 2). Al iniciar
+  sesión con éxito, navega a `WelcomeScreen`.
+- `lib/screens/welcome_screen.dart` — pantalla "¡Bienvenido!" (mockup
+  4). Muestra las dos tarjetas de rol, pero **solo la que coincide con
+  el rol real del usuario está habilitada**: la otra aparece
+  deshabilitada, para cumplir RF-03 ("no debe permitir, bajo ninguna
+  circunstancia, que un usuario acceda a las funciones del rol
+  contrario").
+- `lib/screens/patient_home_screen.dart` — inicio del paciente (mockup
+  5): tarjeta de código QR de emergencia (generado con `qr_flutter`
+  a partir de un identificador de ejemplo — el QR real con datos
+  cifrados del perfil se construye en RF-06), lista de "próximas
+  dosis" con datos de ejemplo (se conecta a datos reales en RF-10 a
+  RF-13) y barra de navegación inferior.
+- `lib/screens/medical_staff_home_screen.dart` — inicio del personal
+  médico (mockup 6): tarjeta "Escanear código QR" (el escaneo real con
+  `mobile_scanner` se conecta en RF-07) y accesos rápidos.
 - `lib/main.dart` — arranca la app en la pantalla de inicio de sesión,
-  igual que el flujo del mockup (splash → login).
+  igual que el flujo del mockup (splash → login → bienvenida → inicio
+  según el rol).
 
 ## Qué cambió respecto a la primera entrega
 
@@ -38,8 +54,9 @@ La primera versión de `register_screen.dart` pedía nombre completo,
 teléfono, confirmar contraseña y la información médica completa. El
 mockup oficial (pantalla 3) muestra que el registro solo pide **correo,
 contraseña y rol** — el resto se captura después, en otra pantalla
-(perfil / información personal, aún no construida). Esta entrega ajusta
-el registro a eso y agrega el login (RF-02), que no existía antes.
+(perfil / información personal, aún no construida). Esa entrega ajustó
+el registro a eso y agregó el login (RF-02). Esta entrega agrega RF-03:
+la navegación automática según el rol después de iniciar sesión.
 
 ## Cómo correrlo
 
@@ -68,10 +85,12 @@ Firebase para probarlas. Cuando quieras conectar el backend real:
 
 - **RF-01** — Registro de usuario (correo, contraseña, rol).
 - **RF-02** — Inicio de sesión, con bloqueo tras 5 intentos fallidos.
+- **RF-03** — Navegación según el rol tras iniciar sesión, sin permitir
+  acceso a las funciones del rol contrario.
 - **RF-24** (parcial) — Validación de tipo de dato por campo: correo y
   contraseña (oculta, con `obscureText`).
 
-Pendientes para una próxima entrega: RF-03 (navegación por rol tras
-iniciar sesión), RF-04 (perfil médico, en pantalla aparte), RF-19
-(recuperar contraseña, ya tiene el enlace pero falta la lógica), y el
-resto de RF-24 para las demás pantallas.
+Pendientes para una próxima entrega: RF-04 (perfil médico, en pantalla
+aparte), RF-06/RF-07 (QR real y escaneo real), RF-10 a RF-13
+(medicamentos reales), RF-19 (recuperar contraseña, ya tiene el enlace
+pero falta la lógica), y el resto de RF-24 para las demás pantallas.

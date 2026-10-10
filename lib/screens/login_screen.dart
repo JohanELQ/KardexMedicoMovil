@@ -4,6 +4,7 @@ import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
+import 'welcome_screen.dart';
 
 /// Pantalla de inicio de sesión (RF-02), igual al mockup oficial:
 /// correo, contraseña, enlace de contraseña olvidada, botón de
@@ -53,11 +54,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _submitting = false);
 
     if (result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sesión iniciada correctamente')),
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => WelcomeScreen(user: result.user!),
+        ),
       );
-      // TODO (RF-03): navegar a la pantalla de inicio según el rol
-      // (result.user!.role) una vez existan esas pantallas.
     } else {
       setState(() => _submitError = result.errorMessage);
     }
