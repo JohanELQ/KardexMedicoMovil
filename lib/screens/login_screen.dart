@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/validators.dart';
 import '../models/app_user.dart';
@@ -27,13 +28,55 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _obscurePassword = true;
   bool _submitting = false;
+  bool _rememberMe = false;
   String? _submitError;
+
+  static const _rememberKey = 'remember_email';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedEmail();
+  }
 
   @override
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  /// Si la persona marcó "Recordarme" la vez anterior, deja el correo
+  /// ya escrito. Solo se guarda el correo, nunca la contraseña: guardar
+  /// contraseñas en texto plano en el dispositivo sería inseguro
+  /// (RNF-01).
+  Future<void> _loadRememberedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_rememberKey);
+      if (saved != null && saved.isNotEmpty && mounted) {
+        setState(() {
+          _emailCtrl.text = saved;
+          _rememberMe = true;
+        });
+      }
+    } catch (_) {
+      // Si no se puede leer el almacenamiento, el login sigue
+      // funcionando normal, solo sin el correo prellenado.
+    }
+  }
+
+  Future<void> _saveRememberedEmail(String email) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString(_rememberKey, email);
+      } else {
+        await prefs.remove(_rememberKey);
+      }
+    } catch (_) {
+      // Mismo criterio: un fallo al guardar no debe bloquear el login.
+    }
   }
 
   Future<void> _submit() async {
@@ -55,6 +98,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _submitting = false);
 
     if (result.success) {
+      await _saveRememberedEmail(data.email);
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => WelcomeScreen(user: result.user!),
@@ -152,19 +197,42 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _submitting
-                        ? null
-                        : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ForgotPasswordScreen(
-                                    authService: widget.authService),
-                              ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: _submitting
+                            ? null
+                            : () => setState(() => _rememberMe = !_rememberMe),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: _submitting
+                                  ? null
+                                  : (v) =>
+                                      setState(() => _rememberMe = v ?? false),
                             ),
-                    child: const Text('¿Olvidaste tu contraseña?'),
-                  ),
+                            const Flexible(child: Text('Recordarme')),
+                          ],
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _submitting
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ForgotPasswordScreen(
+                                      authService: widget.authService),
+                                ),
+                              ),
+                      child: const Text('¿Olvidaste tu contraseña?'),
+                    ),
+                  ],
                 ),
 
                 if (_submitError != null) ...[
