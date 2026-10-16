@@ -55,7 +55,8 @@ oficial (18 pantallas) y a la especificación de requerimientos.
   requerimiento. Se accede desde "¿Olvidaste tu contraseña?" en el
   login.
 - **Inicio del paciente (mockups 5, 7, 8, 13, 14, 15, 16)** — ahora
-  funciona con datos reales creados por el usuario (en memoria):
+  funciona con datos reales creados por el usuario (guardados en el
+  dispositivo):
   - `patient_home_screen.dart` — contenedor con las pestañas Inicio,
     Medicamentos y Perfil, que comparten un mismo `PatientStore`.
   - `patient_home_tab.dart` — saludo, tarjeta del QR (aparece cuando
@@ -82,7 +83,13 @@ oficial (18 pantallas) y a la especificación de requerimientos.
 
 ### Limitaciones actuales del inicio del paciente
 
-- Los datos viven en memoria: al cerrar o recargar la app se pierden.
+- Las cuentas y los datos del paciente se guardan en el dispositivo
+  (`shared_preferences`), no en un servidor: cada navegador o celular
+  tiene sus propios datos. La contraseña se guarda como hash con sal,
+  nunca en texto. Cuando se conecte Firebase, esto pasa al servidor.
+  Requiere el paquete `crypto`.
+- En Chrome los datos se guardan por dirección (puerto). Para no
+  perderlos entre ejecuciones, usar `flutter run -d chrome --web-port=5000`.
 - Todavía no hay notificaciones programadas (RF-11, RF-14): las tomas
   se muestran y se confirman dentro de la app.
 - Una toma sin confirmar pasa a "omitida" después de 2 horas, pero la

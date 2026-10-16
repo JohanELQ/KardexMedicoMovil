@@ -1,3 +1,9 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/app_user.dart';
 
 /// Resultado de un intento de registro.
@@ -37,8 +43,14 @@ abstract class AuthService {
   Future<void> requestPasswordReset(String email);
 }
 
-/// Implementación en memoria para desarrollar y probar la UI sin
-/// depender todavía de Firebase.
+/// Implementación local para desarrollar y probar la UI sin depender
+/// todavía de Firebase.
+///
+/// Las cuentas se guardan en el dispositivo con `shared_preferences`,
+/// así que siguen existiendo al cerrar y volver a abrir la app. La
+/// contraseña nunca se guarda en texto: solo un hash SHA-256 con sal
+/// (RNF-01). Esto es un paso intermedio: cuando se conecte Firebase,
+/// las cuentas vivirán en el servidor.
 ///
 /// Simula:
 /// - RF-01: rechazo de correo ya registrado.
@@ -46,9 +58,11 @@ abstract class AuthService {
 ///   intentos fallidos consecutivos para la misma cuenta, y mensaje de
 ///   error genérico que no revela cuál campo fue el incorrecto.
 class MockAuthService implements AuthService {
-  // email (en minúsculas) -> contraseña, simulando la base de usuarios.
-  final Map<String, String> _accounts = {};
-  final Map<String, UserRole> _roles = {};
+  static const _storageKey = 'kardex_accounts_v1';
+
+  // email (en minúsculas) -> { salt, hash, role }
+  final Map<String, Map<String, String>> _accounts = {};
+  Future<void>? _loading;
 
   // email -> número de intentos fallidos consecutivos.
   final Map<String, int> _failedAttempts = {};
@@ -58,9 +72,49 @@ class MockAuthService implements AuthService {
   static const _maxAttempts = 5;
   static const _lockoutDuration = Duration(minutes: 15);
 
+  /// Carga las cuentas guardadas, una sola vez.
+  Future<void> _ensureLoaded() => _loading ??= _load();
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      decoded.forEach((email, value) {
+        final m = Map<String, dynamic>.from(value as Map);
+        _accounts[email] = {
+          'salt': m['salt'] as String,
+          'hash': m['hash'] as String,
+          'role': m['role'] as String,
+        };
+      });
+    } catch (_) {
+      // Si el almacenamiento falla o está dañado, se empieza vacío.
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_storageKey, jsonEncode(_accounts));
+    } catch (_) {
+      // Un fallo al guardar no debe romper el registro en pantalla.
+    }
+  }
+
+  static String _newSalt() {
+    final rnd = Random.secure();
+    return base64Url.encode(List<int>.generate(16, (_) => rnd.nextInt(256)));
+  }
+
+  static String _hash(String salt, String password) =>
+      sha256.convert(utf8.encode('$salt:$password')).toString();
+
   @override
   Future<RegisterResult> register(RegisterData data) async {
     await Future.delayed(const Duration(milliseconds: 600));
+    await _ensureLoaded();
 
     final emailKey = data.email.trim().toLowerCase();
     if (_accounts.containsKey(emailKey)) {
@@ -69,14 +123,20 @@ class MockAuthService implements AuthService {
       );
     }
 
-    _accounts[emailKey] = data.password;
-    _roles[emailKey] = data.role;
+    final salt = _newSalt();
+    _accounts[emailKey] = {
+      'salt': salt,
+      'hash': _hash(salt, data.password),
+      'role': data.role.name,
+    };
+    await _persist();
     return const RegisterResult.ok();
   }
 
   @override
   Future<LoginResult> login(LoginData data) async {
     await Future.delayed(const Duration(milliseconds: 600));
+    await _ensureLoaded();
 
     final emailKey = data.email.trim().toLowerCase();
 
@@ -95,8 +155,9 @@ class MockAuthService implements AuthService {
       _failedAttempts.remove(emailKey);
     }
 
-    final storedPassword = _accounts[emailKey];
-    final isValid = storedPassword != null && storedPassword == data.password;
+    final account = _accounts[emailKey];
+    final isValid = account != null &&
+        account['hash'] == _hash(account['salt']!, data.password);
 
     if (!isValid) {
       final attempts = (_failedAttempts[emailKey] ?? 0) + 1;
@@ -113,7 +174,9 @@ class MockAuthService implements AuthService {
     _failedAttempts.remove(emailKey);
     _lockedUntil.remove(emailKey);
 
-    final role = _roles[emailKey] ?? UserRole.paciente;
+    final role = account?['role'] == UserRole.personalMedico.name
+        ? UserRole.personalMedico
+        : UserRole.paciente;
     return LoginResult.ok(
       AppUser(uid: emailKey, email: data.email.trim(), role: role),
     );

@@ -1,18 +1,22 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/format.dart';
 import '../models/app_user.dart';
 import '../models/medication.dart';
 
-/// Datos del paciente en memoria: perfil médico, medicamentos e
-/// historial de tomas.
+/// Datos del paciente: perfil médico, medicamentos e historial de tomas.
 ///
-/// Por ahora todo vive en memoria mientras la app está abierta (igual
-/// que `MockAuthService`). Cuando se conecte `sqflite` (RNF-02) o
-/// Firestore, solo hay que cambiar el interior de estos métodos: las
-/// pantallas no necesitan cambios.
+/// Se guardan en el dispositivo con `shared_preferences` (una entrada
+/// por usuario), así que siguen ahí al cerrar y volver a abrir la app.
+/// Cuando se conecte `sqflite` (RNF-02) o Firestore, solo hay que
+/// cambiar el interior de `_load` y `_save`: las pantallas no cambian.
 class PatientStore extends ChangeNotifier {
-  PatientStore({required this.uid});
+  PatientStore({required this.uid}) {
+    _load();
+  }
 
   final String uid;
 
@@ -21,6 +25,126 @@ class PatientStore extends ChangeNotifier {
   final List<Medication> _medications = [];
   final List<DoseLog> _logs = [];
   int _nextId = 1;
+  bool _disposed = false;
+
+  String get _storageKey => 'kardex_patient_v1_$uid';
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  // ---------------------------------------------------------------
+  // Guardado y carga en el dispositivo
+  // ---------------------------------------------------------------
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw == null || raw.isEmpty) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+
+      final p = data['profile'];
+      if (p != null) {
+        final pm = Map<String, dynamic>.from(p as Map);
+        final cm = Map<String, dynamic>.from(pm['contact'] as Map);
+        _profile = MedicalProfile(
+          bloodType: pm['bloodType'] as String,
+          allergies: (pm['allergies'] ?? '') as String,
+          conditions: (pm['conditions'] ?? '') as String,
+          emergencyContact: EmergencyContact(
+            fullName: cm['fullName'] as String,
+            phone: cm['phone'] as String,
+          ),
+        );
+      }
+      _qrToken = data['qrToken'] as String?;
+      _nextId = (data['nextId'] ?? 1) as int;
+
+      _medications
+        ..clear()
+        ..addAll((data['medications'] as List).map((e) {
+          final m = Map<String, dynamic>.from(e as Map);
+          return Medication(
+            id: m['id'] as String,
+            name: m['name'] as String,
+            dose: m['dose'] as String,
+            times: List<String>.from(m['times'] as List),
+            totalDoses: m['totalDoses'] as int,
+            createdAt: DateTime.parse(m['createdAt'] as String),
+          );
+        }));
+
+      _logs
+        ..clear()
+        ..addAll((data['logs'] as List).map((e) {
+          final l = Map<String, dynamic>.from(e as Map);
+          return DoseLog(
+            medicationId: l['medicationId'] as String,
+            medicationName: l['medicationName'] as String,
+            dose: l['dose'] as String,
+            scheduled: DateTime.parse(l['scheduled'] as String),
+            takenAt: DateTime.parse(l['takenAt'] as String),
+          );
+        }));
+
+      if (!_disposed) notifyListeners();
+    } catch (_) {
+      // Si lo guardado está dañado, se empieza con datos vacíos.
+      _profile = null;
+      _qrToken = null;
+      _medications.clear();
+      _logs.clear();
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final p = _profile;
+      final data = <String, dynamic>{
+        'profile': p == null
+            ? null
+            : {
+                'bloodType': p.bloodType,
+                'allergies': p.allergies,
+                'conditions': p.conditions,
+                'contact': {
+                  'fullName': p.emergencyContact.fullName,
+                  'phone': p.emergencyContact.phone,
+                },
+              },
+        'qrToken': _qrToken,
+        'nextId': _nextId,
+        'medications': [
+          for (final m in _medications)
+            {
+              'id': m.id,
+              'name': m.name,
+              'dose': m.dose,
+              'times': m.times,
+              'totalDoses': m.totalDoses,
+              'createdAt': m.createdAt.toIso8601String(),
+            },
+        ],
+        'logs': [
+          for (final l in _logs)
+            {
+              'medicationId': l.medicationId,
+              'medicationName': l.medicationName,
+              'dose': l.dose,
+              'scheduled': l.scheduled.toIso8601String(),
+              'takenAt': l.takenAt.toIso8601String(),
+            },
+        ],
+      };
+      await prefs.setString(_storageKey, jsonEncode(data));
+    } catch (_) {
+      // Un fallo al guardar no debe romper la pantalla.
+    }
+  }
 
   // ---------------------------------------------------------------
   // Perfil médico y QR (RF-04, RF-05, RF-06)
@@ -43,6 +167,7 @@ class PatientStore extends ChangeNotifier {
   void saveProfile(MedicalProfile profile) {
     _profile = profile;
     _qrToken = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    _save();
     notifyListeners();
   }
 
@@ -67,6 +192,7 @@ class PatientStore extends ChangeNotifier {
       totalDoses: totalDoses,
       createdAt: DateTime.now(),
     ));
+    _save();
     notifyListeners();
   }
 
@@ -91,11 +217,13 @@ class PatientStore extends ChangeNotifier {
       // cuentan como omitidas: se empieza a contar desde ahora.
       createdAt: timesChanged ? DateTime.now() : old.createdAt,
     );
+    _save();
     notifyListeners();
   }
 
   void deleteMedication(String id) {
     _medications.removeWhere((m) => m.id == id);
+    _save();
     notifyListeners();
   }
 
@@ -171,6 +299,7 @@ class PatientStore extends ChangeNotifier {
       scheduled: dose.scheduled,
       takenAt: DateTime.now(),
     ));
+    _save();
     notifyListeners();
     return null;
   }

@@ -38,6 +38,7 @@ dependencies:
   # Gestión de estado
   provider: ^6.1.2
   shared_preferences: ^2.5.6
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
