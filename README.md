@@ -54,8 +54,39 @@ oficial (18 pantallas) y a la especificación de requerimientos.
   correo está registrado, te enviamos un enlace..."), tal como exige el
   requerimiento. Se accede desde "¿Olvidaste tu contraseña?" en el
   login.
+- **Inicio del paciente (mockups 5, 7, 8, 13, 14, 15, 16)** — ahora
+  funciona con datos reales creados por el usuario (en memoria):
+  - `patient_home_screen.dart` — contenedor con las pestañas Inicio,
+    Medicamentos y Perfil, que comparten un mismo `PatientStore`.
+  - `patient_home_tab.dart` — saludo, tarjeta del QR (aparece cuando
+    hay perfil médico) y próximas dosis de hoy; tocar una dosis
+    pendiente la confirma (RF-12).
+  - `medications_tab.dart` + `add_medication_screen.dart` — lista,
+    alta, edición y eliminación de medicamentos (RF-10, RF-21), con
+    días restantes (RF-13) y confirmación de toma.
+  - `medical_profile_screen.dart` — ver y editar el perfil médico
+    (RF-04, RF-05); cada guardado genera un QR nuevo (RF-06).
+  - `qr_screen.dart` — QR de emergencia en grande (mockup 8).
+  - `history_screen.dart` — historial de tomas confirmadas y omitidas
+    (RF-15).
+  - `profile_tab.dart` — accesos y cierre de sesión (RF-20).
+  - `lib/services/patient_store.dart` — almacén en memoria (perfil,
+    medicamentos, historial). Cuando se conecte `sqflite`/Firestore,
+    solo cambia el interior de este archivo.
+  - `lib/models/medication.dart`, `lib/core/format.dart` — modelos y
+    utilidades de formato.
+- Login: checkbox "Recordarme" (guarda solo el correo, nunca la
+  contraseña). Requiere el paquete `shared_preferences`.
 - `lib/main.dart` — arranca la app en el splash, igual que el flujo del
   mockup (splash → login → bienvenida → inicio según el rol).
+
+### Limitaciones actuales del inicio del paciente
+
+- Los datos viven en memoria: al cerrar o recargar la app se pierden.
+- Todavía no hay notificaciones programadas (RF-11, RF-14): las tomas
+  se muestran y se confirman dentro de la app.
+- Una toma sin confirmar pasa a "omitida" después de 2 horas, pero la
+  pantalla solo recalcula el estado cuando se vuelve a dibujar.
 
 ## Qué cambió respecto a la primera entrega
 
@@ -98,9 +129,19 @@ Firebase para probarlas. Cuando quieras conectar el backend real:
   acceso a las funciones del rol contrario.
 - **RF-19** — Recuperación de contraseña: solicita el correo y nunca
   revela si existe o no una cuenta asociada.
-- **RF-24** (parcial) — Validación de tipo de dato por campo: correo y
-  contraseña (oculta, con `obscureText`).
+- **RF-04, RF-05, RF-06** — Perfil médico, edición y QR que se
+  regenera con cada guardado (el QR usa un identificador de ejemplo,
+  todavía sin cifrado real ni base de datos compartida).
+- **RF-10, RF-12, RF-13, RF-15, RF-21** — Medicamentos, confirmación de
+  toma con descuento de stock, días restantes, historial y
+  edición/eliminación.
+- **RF-20** — Cierre de sesión.
+- **RF-24** (parcial) — Validación de tipo de dato por campo: correo,
+  contraseña, teléfono y cantidad de dosis (solo dígitos), y textos
+  con límite de caracteres.
 
-Pendientes para una próxima entrega: RF-04 (perfil médico, en pantalla
-aparte), RF-06/RF-07 (QR real y escaneo real), RF-10 a RF-13
-(medicamentos reales), y el resto de RF-24 para las demás pantallas.
+Pendientes para una próxima entrega: RF-07/RF-08/RF-09 (escaneo real
+y vista de emergencia del personal médico), RF-11/RF-14 (notificaciones
+de tomas y stock bajo), RF-16 a RF-18 (geofencing), RF-22 (permisos),
+RF-23 (varios contactos de emergencia), almacenamiento persistente
+(RNF-02) y Firebase.

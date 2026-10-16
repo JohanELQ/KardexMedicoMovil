@@ -102,7 +102,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => WelcomeScreen(user: result.user!),
+          builder: (_) => WelcomeScreen(
+            user: result.user!,
+            authService: widget.authService,
+          ),
         ),
       );
     } else {

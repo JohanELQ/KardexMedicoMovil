@@ -94,6 +94,35 @@ class Validators {
     };
   }
 
+  /// Nombre del medicamento: 2 a 60 caracteres, obligatorio (RF-10).
+  static String? medicationName(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'El nombre del medicamento es obligatorio';
+    if (v.length < 2 || v.length > 60) {
+      return 'Debe tener entre 2 y 60 caracteres';
+    }
+    return null;
+  }
+
+  /// Dosis obligatoria, por ejemplo '50 mg' (RF-10).
+  static String? dose(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'La dosis es obligatoria';
+    if (v.length > 40) return 'Máximo 40 caracteres';
+    return null;
+  }
+
+  /// Cantidad de dosis disponibles: entero mayor a 0 (RF-10, RF-24).
+  static String? totalDoses(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'La cantidad de dosis es obligatoria';
+    if (!RegExp(r'^\d+$').hasMatch(v)) return 'Solo se permiten números';
+    final n = int.tryParse(v);
+    if (n == null || n <= 0) return 'Debe ser un número mayor a 0';
+    if (n > 9999) return 'Máximo 9999';
+    return null;
+  }
+
   /// Selección obligatoria de tipo de sangre (RF-01, RF-04).
   static String? bloodType(String? value) {
     if (value == null || value.isEmpty) {

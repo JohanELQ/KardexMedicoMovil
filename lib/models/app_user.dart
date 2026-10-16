@@ -31,20 +31,29 @@ class EmergencyContact {
       };
 }
 
-/// Información médica inicial capturada durante el registro cuando el
-/// rol es Paciente (RF-01, ampliable luego en RF-04).
+/// Perfil médico del paciente (RF-04, RF-05).
+///
+/// Alergias y condiciones son texto libre y opcionales (máximo 200 y 300
+/// caracteres). Si hay varias se separan con comas.
 class MedicalProfile {
   final String bloodType;
-  final List<String> allergies; // hasta 2 en el registro inicial
-  final List<String> conditions; // hasta 2 en el registro inicial
+  final String allergies;
+  final String conditions;
   final EmergencyContact emergencyContact;
 
   const MedicalProfile({
     required this.bloodType,
-    this.allergies = const [],
-    this.conditions = const [],
+    this.allergies = '',
+    this.conditions = '',
     required this.emergencyContact,
   });
+
+  /// 'Diabetes tipo 2, Hipertensión' -> ['Diabetes tipo 2', 'Hipertensión'].
+  List<String> get conditionsList => conditions
+      .split(',')
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList();
 
   Map<String, dynamic> toMap() => {
         'bloodType': bloodType,

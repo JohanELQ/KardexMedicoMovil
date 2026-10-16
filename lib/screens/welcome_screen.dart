@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
+import '../services/auth_service.dart';
 import 'medical_staff_home_screen.dart';
 import 'patient_home_screen.dart';
 
@@ -14,8 +15,13 @@ import 'patient_home_screen.dart';
 /// para que la navegación real siga siendo automática según el rol.
 class WelcomeScreen extends StatelessWidget {
   final AppUser user;
+  final AuthService authService;
 
-  const WelcomeScreen({super.key, required this.user});
+  const WelcomeScreen({
+    super.key,
+    required this.user,
+    required this.authService,
+  });
 
   bool get _isPaciente => user.role == UserRole.paciente;
 
@@ -29,8 +35,8 @@ class WelcomeScreen extends StatelessWidget {
 
   void _goToRoleHome(BuildContext context) {
     final screen = _isPaciente
-        ? PatientHomeScreen(user: user)
-        : MedicalStaffHomeScreen(user: user);
+        ? PatientHomeScreen(user: user, authService: authService)
+        : MedicalStaffHomeScreen(user: user, authService: authService);
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => screen),
     );

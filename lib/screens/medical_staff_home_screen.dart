@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 /// Pantalla de inicio del personal médico (mockup 6, RF-03).
 ///
@@ -9,8 +11,13 @@ import '../models/app_user.dart';
 /// aviso de que esa parte todavía no está implementada.
 class MedicalStaffHomeScreen extends StatefulWidget {
   final AppUser user;
+  final AuthService authService;
 
-  const MedicalStaffHomeScreen({super.key, required this.user});
+  const MedicalStaffHomeScreen({
+    super.key,
+    required this.user,
+    required this.authService,
+  });
 
   @override
   State<MedicalStaffHomeScreen> createState() =>
@@ -63,6 +70,18 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
           IconButton(
             icon: const Icon(Icons.notifications_none),
             onPressed: () => _notAvailableYet('Las notificaciones'),
+          ),
+          // RF-20: cierre de sesión visible desde la pantalla principal.
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar sesión',
+            onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) =>
+                    LoginScreen(authService: widget.authService),
+              ),
+              (route) => false,
+            ),
           ),
         ],
       ),

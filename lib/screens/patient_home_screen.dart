@@ -1,180 +1,77 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/app_user.dart';
+import '../services/auth_service.dart';
+import '../services/patient_store.dart';
+import 'medications_tab.dart';
+import 'patient_home_tab.dart';
+import 'profile_tab.dart';
 
-/// Pantalla de inicio del paciente (mockup 5, RF-03).
-///
-/// El código QR y la lista de "próximas dosis" usan datos de ejemplo
-/// por ahora: el QR real se genera en RF-06 a partir del perfil médico,
-/// y la lista de dosis viene de los medicamentos registrados (RF-10 a
-/// RF-13), que todavía no están implementados.
+/// Contenedor del paciente (mockup 5, RF-03): barra inferior con las
+/// pestañas Inicio, Medicamentos y Perfil. Todas comparten un mismo
+/// [PatientStore], así que lo que se agrega en una se ve en las demás.
 class PatientHomeScreen extends StatefulWidget {
   final AppUser user;
+  final AuthService authService;
 
-  const PatientHomeScreen({super.key, required this.user});
+  const PatientHomeScreen({
+    super.key,
+    required this.user,
+    required this.authService,
+  });
 
   @override
   State<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
+  late final PatientStore _store = PatientStore(uid: widget.user.uid);
   int _tabIndex = 0;
 
-  String get _displayName {
-    if (widget.user.fullName.trim().isNotEmpty) {
-      return widget.user.fullName.trim();
-    }
-    final at = widget.user.email.indexOf('@');
-    return at > 0 ? widget.user.email.substring(0, at) : widget.user.email;
-  }
-
-  void _notAvailableYet(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature todavía no está disponible')),
-    );
+  @override
+  void dispose() {
+    _store.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor:
-                  Theme.of(context).colorScheme.primary.withOpacity(0.15),
-              child: const Icon(Icons.person),
-            ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Hola, $_displayName',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-                const Text('Paciente',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () => _notAvailableYet('Las notificaciones'),
-          ),
-        ],
-      ),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: IndexedStack(
+          index: _tabIndex,
           children: [
-            _emergencyQrCard(context),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Próximas dosis',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                TextButton(
-                  onPressed: () => _notAvailableYet('El listado completo'),
-                  child: const Text('Ver todas'),
-                ),
-              ],
+            PatientHomeTab(
+              user: widget.user,
+              store: _store,
+              onSeeMedications: () => setState(() => _tabIndex = 1),
             ),
-            const SizedBox(height: 4),
-            _doseItem('Paracetamol 500 mg', 'Hoy · 08:00 PM', done: true),
-            _doseItem('Lisinopril 10 mg', 'Hoy · 02:00 PM', done: true),
-            _doseItem('Metformina 850 mg', 'Hoy · 08:00 PM', done: false),
+            MedicationsTab(store: _store),
+            ProfileTab(
+              user: widget.user,
+              store: _store,
+              authService: widget.authService,
+            ),
           ],
         ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tabIndex,
-        onDestinationSelected: (i) {
-          setState(() => _tabIndex = i);
-          if (i != 0) _notAvailableYet('Esta sección');
-        },
+        onDestinationSelected: (i) => setState(() => _tabIndex = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Inicio'),
           NavigationDestination(
-              icon: Icon(Icons.medication_outlined), label: 'Medicamentos'),
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Inicio'),
           NavigationDestination(
-              icon: Icon(Icons.person_outline), label: 'Perfil'),
+              icon: Icon(Icons.medication_outlined),
+              selectedIcon: Icon(Icons.medication),
+              label: 'Medicamentos'),
+          NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Perfil'),
         ],
-      ),
-    );
-  }
-
-  Widget _emergencyQrCard(BuildContext context) {
-    final qrData = 'KARDEX-EMERGENCIA:${widget.user.uid}';
-    return Card(
-      color: Theme.of(context).colorScheme.primary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Tu código QR de emergencia',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15)),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Muestra este código en caso de emergencia',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Colors.white),
-                    ),
-                    onPressed: () => _notAvailableYet('La vista ampliada del QR'),
-                    child: const Text('Ver código QR'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: QrImageView(data: qrData, size: 70),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _doseItem(String name, String schedule, {required bool done}) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey[300]!),
-      ),
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ListTile(
-        leading: Icon(Icons.medication, color: Colors.blueGrey[400]),
-        title: Text(name),
-        subtitle: Text(schedule),
-        trailing: Icon(
-          done ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: done ? Colors.green : Colors.grey[400],
-        ),
       ),
     );
   }
