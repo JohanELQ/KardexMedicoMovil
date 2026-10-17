@@ -91,7 +91,7 @@ class PatientHomeTab extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Hola, ${nameFromEmail(user.email)}',
+            Text('Hola, ${displayName(store.profile, user)}',
                 style:
                     const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const Text('Paciente',

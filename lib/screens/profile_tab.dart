@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/format.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/patient_store.dart';
@@ -55,8 +54,13 @@ class ProfileTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nameFromEmail(user.email),
-                      style: Theme.of(context).textTheme.titleLarge),
+                  ListenableBuilder(
+                    listenable: store,
+                    builder: (context, _) => Text(
+                      displayName(store.profile, user),
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
                   Text(user.email, style: TextStyle(color: Colors.grey[600])),
                 ],
               ),

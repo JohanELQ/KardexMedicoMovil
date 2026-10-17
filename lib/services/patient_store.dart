@@ -51,6 +51,8 @@ class PatientStore extends ChangeNotifier {
         final pm = Map<String, dynamic>.from(p as Map);
         final cm = Map<String, dynamic>.from(pm['contact'] as Map);
         _profile = MedicalProfile(
+          fullName: (pm['fullName'] ?? '') as String,
+          age: pm['age'] as int?,
           bloodType: pm['bloodType'] as String,
           allergies: (pm['allergies'] ?? '') as String,
           conditions: (pm['conditions'] ?? '') as String,
@@ -108,6 +110,8 @@ class PatientStore extends ChangeNotifier {
         'profile': p == null
             ? null
             : {
+                'fullName': p.fullName,
+                'age': p.age,
                 'bloodType': p.bloodType,
                 'allergies': p.allergies,
                 'conditions': p.conditions,

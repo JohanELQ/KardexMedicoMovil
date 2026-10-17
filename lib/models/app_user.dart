@@ -36,12 +36,18 @@ class EmergencyContact {
 /// Alergias y condiciones son texto libre y opcionales (máximo 200 y 300
 /// caracteres). Si hay varias se separan con comas.
 class MedicalProfile {
+  /// Nombre y edad son opcionales: el mockup 7 los muestra en el perfil,
+  /// pero RF-04 solo exige tipo de sangre y contacto de emergencia.
+  final String fullName;
+  final int? age;
   final String bloodType;
   final String allergies;
   final String conditions;
   final EmergencyContact emergencyContact;
 
   const MedicalProfile({
+    this.fullName = '',
+    this.age,
     required this.bloodType,
     this.allergies = '',
     this.conditions = '',
@@ -56,6 +62,8 @@ class MedicalProfile {
       .toList();
 
   Map<String, dynamic> toMap() => {
+        'fullName': fullName,
+        'age': age,
         'bloodType': bloodType,
         'allergies': allergies,
         'conditions': conditions,

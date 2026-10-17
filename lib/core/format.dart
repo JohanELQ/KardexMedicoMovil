@@ -47,6 +47,14 @@ String daysRemainingText(int days) {
   return 'Quedan $days días';
 }
 
+/// Frecuencia legible según las tomas por día: 2 -> 'Cada 12 horas',
+/// 3 -> 'Cada 8 horas'. Si 24 no se divide exacto, '5 tomas al día'.
+String everyHoursText(int dosesPerDay) {
+  if (dosesPerDay <= 0) return 'Sin horarios';
+  if (24 % dosesPerDay == 0) return 'Cada ${24 ~/ dosesPerDay} horas';
+  return '$dosesPerDay tomas al día';
+}
+
 /// Nombre provisional a partir del correo (hasta que exista la pantalla
 /// de información personal): 'juan@correo.com' -> 'juan'.
 String nameFromEmail(String email) {

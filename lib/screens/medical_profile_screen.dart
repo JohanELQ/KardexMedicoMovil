@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/format.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/patient_store.dart';
+import 'qr_screen.dart';
 
 const List<String> kBloodTypes = [
   'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-',
@@ -88,58 +90,113 @@ class MedicalProfileScreen extends StatelessWidget {
   Widget _details(BuildContext context, MedicalProfile profile) {
     final meds = store.medications;
     final conditions = profile.conditionsList;
-    return ListView(
-      padding: const EdgeInsets.all(20),
+    final allergies = profile.allergies.trim();
+    final summary = <String>[
+      if (profile.age != null) 'Edad: ${profile.age} años',
+      'Tipo de sangre: ${profile.bloodType}',
+    ].join(' · ');
+    final primary = Theme.of(context).colorScheme.primary;
+
+    return Column(
       children: [
-        Center(
-          child: CircleAvatar(
-            radius: 36,
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withOpacity(0.15),
-            child: const Icon(Icons.person, size: 40),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Center(
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: primary.withOpacity(0.15),
+                  child: Icon(Icons.person, size: 44, color: primary),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  displayName(profile, user),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Center(
+                child: Text(summary,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[700])),
+              ),
+              const SizedBox(height: 2),
+              Center(
+                child: Text(
+                  allergies.isEmpty
+                      ? 'Alergias: ninguna registrada'
+                      : 'Alergias: $allergies',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ),
+              const SizedBox(height: 24),
+              _sectionTitle('Condiciones médicas'),
+              if (conditions.isEmpty)
+                _itemCard(
+                  icon: Icons.check_circle_outline,
+                  color: Colors.grey,
+                  title: 'Ninguna registrada',
+                )
+              else
+                for (final c in conditions)
+                  _itemCard(
+                    icon: Icons.monitor_heart_outlined,
+                    color: Colors.teal,
+                    title: c,
+                  ),
+              const SizedBox(height: 20),
+              _sectionTitle('Medicamentos actuales'),
+              if (meds.isEmpty)
+                _itemCard(
+                  icon: Icons.medication_outlined,
+                  color: Colors.grey,
+                  title: 'Sin medicamentos registrados',
+                )
+              else
+                for (final m in meds)
+                  _itemCard(
+                    icon: Icons.medication,
+                    color: primary,
+                    title: '${m.name} ${m.dose}',
+                    subtitle: everyHoursText(m.dosesPerDay),
+                  ),
+              const SizedBox(height: 20),
+              _sectionTitle('Contacto de emergencia'),
+              _itemCard(
+                icon: Icons.phone_in_talk_outlined,
+                color: Colors.orange,
+                title: profile.emergencyContact.fullName,
+                subtitle: profile.emergencyContact.phone,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        Center(
-          child: Text(
-            nameFromUser(user),
-            style: Theme.of(context).textTheme.titleLarge,
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                icon: const Icon(Icons.qr_code_2),
+                label: const Text('Ver código QR'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => QrScreen(store: store, user: user),
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Center(
-          child: Text(
-            'Tipo de sangre: ${profile.bloodType}',
-            style: TextStyle(color: Colors.grey[700]),
-          ),
-        ),
-        const SizedBox(height: 24),
-        _sectionTitle('Alergias'),
-        _infoCard(
-          profile.allergies.trim().isEmpty
-              ? 'Ninguna registrada'
-              : profile.allergies.trim(),
-        ),
-        const SizedBox(height: 20),
-        _sectionTitle('Condiciones médicas'),
-        if (conditions.isEmpty)
-          _infoCard('Ninguna registrada')
-        else
-          for (final c in conditions) _infoCard(c),
-        const SizedBox(height: 20),
-        _sectionTitle('Contacto de emergencia'),
-        _infoCard(
-          '${profile.emergencyContact.fullName}\n'
-          '${profile.emergencyContact.phone}',
-        ),
-        const SizedBox(height: 20),
-        _sectionTitle('Medicamentos actuales'),
-        if (meds.isEmpty)
-          _infoCard('Sin medicamentos registrados')
-        else
-          for (final m in meds)
-            _infoCard('${m.name} · ${m.dose}\n'
-                '${m.dosesPerDay} ${m.dosesPerDay == 1 ? "toma" : "tomas"} al día'),
       ],
     );
   }
@@ -150,7 +207,14 @@ class MedicalProfileScreen extends StatelessWidget {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
       );
 
-  Widget _infoCard(String text) => Card(
+  /// Tarjeta con ícono a la izquierda, como en el mockup 7.
+  Widget _itemCard({
+    required IconData icon,
+    required Color color,
+    required String title,
+    String? subtitle,
+  }) =>
+      Card(
         elevation: 0,
         margin: const EdgeInsets.only(bottom: 8),
         shape: RoundedRectangleBorder(
@@ -158,10 +222,43 @@ class MedicalProfileScreen extends StatelessWidget {
           side: BorderSide(color: Colors.grey[300]!),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: SizedBox(width: double.infinity, child: Text(text)),
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: color),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if (subtitle != null)
+                      Text(subtitle,
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
+}
+
+/// Nombre a mostrar: el del perfil si lo escribió; si no, el provisional
+/// sacado del correo.
+String displayName(MedicalProfile? profile, AppUser user) {
+  final n = profile?.fullName.trim() ?? '';
+  return n.isNotEmpty ? n : nameFromUser(user);
 }
 
 String nameFromUser(AppUser user) {
@@ -186,6 +283,8 @@ class EditMedicalProfileScreen extends StatefulWidget {
 
 class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _ageCtrl = TextEditingController();
   final _allergiesCtrl = TextEditingController();
   final _conditionsCtrl = TextEditingController();
   final _contactNameCtrl = TextEditingController();
@@ -202,6 +301,8 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
     final p = widget.store.profile;
     if (p != null) {
       _bloodType = p.bloodType;
+      _nameCtrl.text = p.fullName;
+      _ageCtrl.text = p.age?.toString() ?? '';
       _allergiesCtrl.text = p.allergies;
       _conditionsCtrl.text = p.conditions;
       _contactNameCtrl.text = p.emergencyContact.fullName;
@@ -211,6 +312,8 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
+    _ageCtrl.dispose();
     _allergiesCtrl.dispose();
     _conditionsCtrl.dispose();
     _contactNameCtrl.dispose();
@@ -225,6 +328,8 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
     if (bloodError != null || !formOk) return;
 
     widget.store.saveProfile(MedicalProfile(
+      fullName: _nameCtrl.text.trim(),
+      age: int.tryParse(_ageCtrl.text.trim()),
       bloodType: _bloodType!,
       allergies: _allergiesCtrl.text.trim(),
       conditions: _conditionsCtrl.text.trim(),
@@ -259,6 +364,24 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _label('Nombre completo (opcional)'),
+                TextFormField(
+                  controller: _nameCtrl,
+                  decoration: _decoration('Ej. Juan Pérez'),
+                  validator: Validators.optionalFullName,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 16),
+                _label('Edad (opcional)'),
+                TextFormField(
+                  controller: _ageCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  maxLength: 3,
+                  decoration: _decoration('Ej. 28'),
+                  validator: Validators.optionalAge,
+                ),
+                const SizedBox(height: 4),
                 _label('Tipo de sangre (obligatorio)'),
                 Wrap(
                   spacing: 8,

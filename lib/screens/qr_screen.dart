@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../core/format.dart';
 import '../models/app_user.dart';
 import '../services/patient_store.dart';
 import 'medical_profile_screen.dart';
@@ -57,7 +57,7 @@ class QrScreen extends StatelessWidget {
           QrImageView(data: data, size: 240),
           const SizedBox(height: 16),
           Text(
-            nameFromEmail(user.email),
+            displayName(store.profile, user),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 4),
@@ -77,8 +77,33 @@ class QrScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              icon: const Icon(Icons.share_outlined),
+              label: const Text('Compartir'),
+              onPressed: () => _share(context, data),
+            ),
+          ),
         ],
       ),
+    );
+  }
+
+  /// Copia al portapapeles un texto con el nombre, el ID y el contenido
+  /// del código, para pegarlo en un chat o correo. Compartir como imagen
+  /// o con el menú del sistema necesita el paquete `share_plus`, que se
+  /// puede agregar más adelante.
+  Future<void> _share(BuildContext context, String data) async {
+    final text = 'Código QR de emergencia de '
+        '${displayName(store.profile, user)}\n'
+        'ID: ${store.qrShortId}\n'
+        'Código: $data';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Datos del código copiados para compartir')),
     );
   }
 

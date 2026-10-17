@@ -26,6 +26,26 @@ class Validators {
     return null;
   }
 
+  /// Nombre del paciente en el perfil: opcional, pero si se escribe
+  /// debe tener entre 3 y 60 caracteres.
+  static String? optionalFullName(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (v.length < 3) return 'Debe tener al menos 3 caracteres';
+    if (v.length > 60) return 'Máximo 60 caracteres';
+    return null;
+  }
+
+  /// Edad opcional: solo dígitos, entre 0 y 120 (RF-24).
+  static String? optionalAge(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return null;
+    if (!RegExp(r'^\d+$').hasMatch(v)) return 'Solo se permiten números';
+    final n = int.tryParse(v);
+    if (n == null || n > 120) return 'Ingresa una edad entre 0 y 120';
+    return null;
+  }
+
   /// Correo electrónico con formato usuario@dominio.com (RF-01, RF-24).
   static String? email(String? value) {
     final v = value?.trim() ?? '';
