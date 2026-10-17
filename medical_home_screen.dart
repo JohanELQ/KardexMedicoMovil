@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'scan_patient_qr_screen.dart';
 
 const blue = Color(0xFF1675D1);
 const ink = Color(0xFF20334A);
@@ -129,7 +130,13 @@ class _QuickTile extends StatelessWidget {
 class _ScannerPage extends StatelessWidget {
   const _ScannerPage();
 
-  @override
+  Navigator.of(context).push(
+    MaterialPageRoute<void>(
+      builder: (_) => const ScanPatientQrScreen(),
+    ),
+  );
+
+  /*@override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Escanear código QR'),
       backgroundColor: Colors.white, foregroundColor: ink),
@@ -152,5 +159,5 @@ class _ScannerPage extends StatelessWidget {
         const SizedBox(height: 20),
       ]),
     ),
-  );
+  );*/
 }
