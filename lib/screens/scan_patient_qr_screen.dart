@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../services/emergency_lookup.dart';
+import '../services/scan_history_store.dart';
 import 'emergency_view_screen.dart';
 
 // Cámara y diseño del escáner: trabajo de JohanELQ (rama
@@ -12,7 +13,10 @@ const Color kardexBlue = Color(0xFF16A9FF);
 const Color kardexDark = Color(0xFF17232D);
 
 class ScanPatientQrScreen extends StatefulWidget {
-  const ScanPatientQrScreen({super.key});
+  /// Si se entrega, cada escaneo válido se anota en el historial.
+  final ScanHistoryStore? history;
+
+  const ScanPatientQrScreen({super.key, this.history});
 
   @override
   State<ScanPatientQrScreen> createState() => _ScanPatientQrScreenState();
@@ -90,6 +94,7 @@ class _ScanPatientQrScreenState extends State<ScanPatientQrScreen> {
       return;
     }
 
+    widget.history?.add(info);
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => EmergencyViewScreen(info: info),

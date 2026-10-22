@@ -22,6 +22,10 @@ class EmergencyMedication {
 /// Es una copia de los datos: no hay forma de modificar el perfil del
 /// paciente desde aquí.
 class EmergencyInfo {
+  /// Identificador opaco del paciente y código leído (sirven para el
+  /// historial de escaneos del personal médico).
+  final String ownerId;
+  final String code;
   final String fullName;
   final int? age;
   final String bloodType;
@@ -32,6 +36,8 @@ class EmergencyInfo {
   final List<EmergencyMedication> medications;
 
   const EmergencyInfo({
+    required this.ownerId,
+    required this.code,
     required this.fullName,
     required this.age,
     required this.bloodType,
@@ -103,6 +109,8 @@ class EmergencyLookup {
         }).toList();
 
         return EmergencyInfo(
+          ownerId: ownerId,
+          code: code,
           fullName: ((pm['fullName'] ?? '') as String).trim(),
           age: pm['age'] as int?,
           bloodType: pm['bloodType'] as String,

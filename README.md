@@ -93,6 +93,18 @@ oficial (18 pantallas) y a la especificación de requerimientos.
   - El QR lleva un identificador opaco (no el correo) y un token que
     cambia con cada guardado del perfil: un QR viejo deja de ser válido
     (RF-06, RNF-01).
+- **Inicio del personal médico completo (mockup 6, RF-03, RF-20)** —
+  `medical_staff_home_screen.dart` con tres pestañas:
+  - Inicio: tarjeta para escanear y accesos rápidos con contadores.
+  - Pacientes (`staff_patients_tab.dart`): pacientes ya escaneados,
+    con fecha del último escaneo; tocar uno abre su ficha.
+  - Perfil (`staff_profile_tab.dart`): cuenta, historial y cierre de
+    sesión.
+  - `scan_history_screen.dart` + `lib/services/scan_history_store.dart`:
+    historial de escaneos guardado en el dispositivo. Solo guarda el
+    nombre, el tipo de sangre y el código; los datos clínicos se
+    consultan de nuevo cada vez (RNF-01). Si el paciente actualizó su
+    perfil, su QR cambió y hay que escanearlo otra vez (RF-06).
 - **Recordatorio de medicamentos (mockup 10, RF-11)** —
   `medication_reminder.dart`: cuando llega la hora de una toma (revisión
   cada 10 segundos, desvío menor a 1 minuto) aparece a pantalla completa
