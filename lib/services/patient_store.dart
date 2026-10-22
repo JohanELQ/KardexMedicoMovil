@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,7 +28,17 @@ class PatientStore extends ChangeNotifier {
   int _nextId = 1;
   bool _disposed = false;
 
-  String get _storageKey => 'kardex_patient_v1_$uid';
+  /// Prefijo de la clave con que se guardan los datos de cada paciente.
+  static const storagePrefix = 'kardex_patient_v1_';
+  static const qrPrefix = 'KARDEX-EMERGENCIA';
+
+  String get _storageKey => '$storagePrefix$uid';
+
+  /// Identificador opaco del paciente para el QR (RNF-01): así el código
+  /// no muestra el correo ni ningún dato personal, solo lo necesario
+  /// para encontrar el perfil.
+  static String ownerIdFor(String uid) =>
+      sha256.convert(utf8.encode('kardex:$uid')).toString().substring(0, 16);
 
   @override
   void dispose() {
@@ -160,7 +171,7 @@ class PatientStore extends ChangeNotifier {
   /// Contenido del QR de emergencia. Es null mientras no exista un
   /// perfil guardado (RF-06: el QR se genera cuando hay perfil).
   String? get qrData =>
-      _qrToken == null ? null : 'KARDEX-EMERGENCIA:$uid:$_qrToken';
+      _qrToken == null ? null : '$qrPrefix:${ownerIdFor(uid)}:$_qrToken';
 
   /// Identificador corto que se muestra debajo del QR.
   String get qrShortId =>
@@ -265,6 +276,39 @@ class PatientStore extends ChangeNotifier {
       return DoseStatus.missed;
     }
     return DoseStatus.pending;
+  }
+
+  // Recordatorios dentro de la app (mockup 10, RF-11).
+  final Set<String> _alerted = {};
+  final Map<String, DateTime> _snoozedUntil = {};
+
+  String _doseKey(ScheduledDose d) =>
+      '${d.medication.id}|${d.scheduled.toIso8601String()}';
+
+  /// Primera toma cuya hora ya llegó, sigue pendiente, no se ha avisado
+  /// todavía y no está pospuesta. Null si no hay ninguna.
+  ScheduledDose? nextDueDose(DateTime now) {
+    for (final d in dosesForDay(now)) {
+      if (d.status != DoseStatus.pending) continue;
+      if (d.scheduled.isAfter(now)) continue;
+      final key = _doseKey(d);
+      if (_alerted.contains(key)) continue;
+      final until = _snoozedUntil[key];
+      if (until != null && until.isAfter(now)) continue;
+      return d;
+    }
+    return null;
+  }
+
+  /// Marca la toma como ya avisada para no repetir el recordatorio.
+  void markAlerted(ScheduledDose dose) => _alerted.add(_doseKey(dose));
+
+  /// «Posponer»: el aviso vuelve a salir pasado [by] (siempre que la
+  /// toma siga pendiente, es decir, dentro de las 2 horas de margen).
+  void snooze(ScheduledDose dose, Duration by) {
+    final key = _doseKey(dose);
+    _alerted.remove(key);
+    _snoozedUntil[key] = DateTime.now().add(by);
   }
 
   /// Próxima toma pendiente de un medicamento (hoy), o null si no hay.

@@ -76,6 +76,29 @@ oficial (18 pantallas) y a la especificación de requerimientos.
     solo cambia el interior de este archivo.
   - `lib/models/medication.dart`, `lib/core/format.dart` — modelos y
     utilidades de formato.
+- **Personal médico (mockups 6 y 9, RF-07, RF-08, RF-09)**:
+  - `scan_patient_qr_screen.dart` — escáner con cámara (diseño y
+    cámara de JohanELQ, rama `feature/funcion-scaner-QR`), conectado
+    con la búsqueda real del perfil. Si el código no es legible o no
+    corresponde a un perfil, pide intentar de nuevo. El ícono de
+    teclado permite pegar el código a mano.
+  - `emergency_view_screen.dart` — vista de emergencia de solo
+    lectura: nombre, edad, tipo de sangre, alergias, condiciones,
+    medicamentos con dosis y horarios (o «Sin medicamentos
+    registrados») y contacto. No tiene botones para editar nada.
+  - `lib/services/emergency_lookup.dart` — busca el perfil que
+    corresponde al código. Por ahora busca entre los pacientes
+    guardados en el mismo dispositivo; con Firestore solo cambia este
+    archivo.
+  - El QR lleva un identificador opaco (no el correo) y un token que
+    cambia con cada guardado del perfil: un QR viejo deja de ser válido
+    (RF-06, RNF-01).
+- **Recordatorio de medicamentos (mockup 10, RF-11)** —
+  `medication_reminder.dart`: cuando llega la hora de una toma (revisión
+  cada 10 segundos, desvío menor a 1 minuto) aparece a pantalla completa
+  con el nombre y la dosis, y los botones «Confirmar» (descuenta stock y
+  guarda en el historial) y «Posponer» (vuelve a avisar en 10 minutos;
+  la X también pospone). Por ahora solo con la app abierta.
 - Login: checkbox "Recordarme" (guarda solo el correo, nunca la
   contraseña). Requiere el paquete `shared_preferences`.
 - `lib/main.dart` — arranca la app en el splash, igual que el flujo del
@@ -90,8 +113,9 @@ oficial (18 pantallas) y a la especificación de requerimientos.
   Requiere el paquete `crypto`.
 - En Chrome los datos se guardan por dirección (puerto). Para no
   perderlos entre ejecuciones, usar `flutter run -d chrome --web-port=5000`.
-- Todavía no hay notificaciones programadas (RF-11, RF-14): las tomas
-  se muestran y se confirman dentro de la app.
+- Los recordatorios solo salen con la app abierta. Las notificaciones
+  reales con la app cerrada (RF-11) y el aviso de medicamento por
+  agotarse (RF-14) necesitan flutter_local_notifications en Android.
 - Una toma sin confirmar pasa a "omitida" después de 2 horas, pero la
   pantalla solo recalcula el estado cuando se vuelve a dibujar.
 
@@ -142,13 +166,15 @@ Firebase para probarlas. Cuando quieras conectar el backend real:
 - **RF-10, RF-12, RF-13, RF-15, RF-21** — Medicamentos, confirmación de
   toma con descuento de stock, días restantes, historial y
   edición/eliminación.
+- **RF-07, RF-08, RF-09** — Escaneo del QR y vista de emergencia de
+  solo lectura con medicamentos (funciona entre usuarios del mismo
+  dispositivo hasta conectar una base compartida).
 - **RF-20** — Cierre de sesión.
 - **RF-24** (parcial) — Validación de tipo de dato por campo: correo,
   contraseña, teléfono y cantidad de dosis (solo dígitos), y textos
   con límite de caracteres.
 
-Pendientes para una próxima entrega: RF-07/RF-08/RF-09 (escaneo real
-y vista de emergencia del personal médico), RF-11/RF-14 (notificaciones
+Pendientes para una próxima entrega: RF-11/RF-14 (notificaciones
 de tomas y stock bajo), RF-16 a RF-18 (geofencing), RF-22 (permisos),
 RF-23 (varios contactos de emergencia), almacenamiento persistente
 (RNF-02) y Firebase.

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'scan_patient_qr_screen.dart';
 
 /// Pantalla de inicio del personal médico (mockup 6, RF-03).
 ///
@@ -33,6 +34,12 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
     }
     final at = widget.user.email.indexOf('@');
     return at > 0 ? widget.user.email.substring(0, at) : widget.user.email;
+  }
+
+  void _openScanner() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ScanPatientQrScreen()),
+    );
   }
 
   void _notAvailableYet(String feature) {
@@ -121,7 +128,10 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
     return Card(
       color: Theme.of(context).colorScheme.primary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _openScanner,
+        child: Padding(
         padding: const EdgeInsets.all(18),
         child: Row(
           children: [
@@ -152,11 +162,12 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
               child: IconButton(
                 icon: Icon(Icons.qr_code_scanner,
                     color: Theme.of(context).colorScheme.primary),
-                onPressed: () => _notAvailableYet('El escaneo de QR'),
+                onPressed: _openScanner,
               ),
             ),
           ],
         ),
+      ),
       ),
     );
   }

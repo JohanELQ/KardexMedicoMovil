@@ -1,6 +1,10 @@
 /// Utilidades pequeñas de formato (horas, fechas, textos de días).
 /// Se escriben a mano para no depender del paquete `intl`.
 
+const List<String> _weekdaysEs = [
+  'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom',
+];
+
 const List<String> _monthsEs = [
   'ene', 'feb', 'mar', 'abr', 'may', 'jun',
   'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
@@ -39,6 +43,10 @@ String dayLabel(DateTime date, DateTime now) {
   if (diff == 1) return 'Ayer';
   return '${d.day} ${_monthsEs[d.month - 1]} ${d.year}';
 }
+
+/// 'Mié, 25 sep' (como en el mockup 10).
+String dateShortEs(DateTime d) =>
+    '${_weekdaysEs[d.weekday - 1]}, ${d.day} ${_monthsEs[d.month - 1]}';
 
 /// RF-13: 'Quedan 6 días', 'Queda 1 día' o '0 días'.
 String daysRemainingText(int days) {
