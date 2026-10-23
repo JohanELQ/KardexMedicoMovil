@@ -143,6 +143,34 @@ class Validators {
     return null;
   }
 
+  /// Documento de identidad del médico: solo dígitos, 6 a 12.
+  static String? document(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'El documento es obligatorio';
+    if (!RegExp(r'^\d+$').hasMatch(v)) return 'Solo se permiten números';
+    if (v.length < 6 || v.length > 12) return 'Debe tener entre 6 y 12 dígitos';
+    return null;
+  }
+
+  /// Registro médico o tarjeta profesional: letras y números, 4 a 20.
+  static String? professionalLicense(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'El registro médico es obligatorio';
+    if (!RegExp(r'^[A-Za-z0-9\-]+$').hasMatch(v)) {
+      return 'Solo letras, números y guiones';
+    }
+    if (v.length < 4 || v.length > 20) return 'Debe tener entre 4 y 20 caracteres';
+    return null;
+  }
+
+  /// Especialidad del médico: obligatoria, 3 a 60 caracteres.
+  static String? specialty(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'La especialidad es obligatoria';
+    if (v.length < 3 || v.length > 60) return 'Debe tener entre 3 y 60 caracteres';
+    return null;
+  }
+
   /// Selección obligatoria de tipo de sangre (RF-01, RF-04).
   static String? bloodType(String? value) {
     if (value == null || value.isEmpty) {

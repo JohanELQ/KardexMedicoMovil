@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import 'history_screen.dart';
 import 'login_screen.dart';
 import 'medical_profile_screen.dart';
+import 'notifications_screen.dart';
 import 'qr_screen.dart';
 
 /// Pestaña "Perfil" del paciente (mockup 16): accesos al perfil médico,
@@ -13,12 +15,14 @@ import 'qr_screen.dart';
 class ProfileTab extends StatelessWidget {
   final AppUser user;
   final PatientStore store;
+  final NotificationStore notifications;
   final AuthService authService;
 
   const ProfileTab({
     super.key,
     required this.user,
     required this.store,
+    required this.notifications,
     required this.authService,
   });
 
@@ -85,6 +89,15 @@ class ProfileTab extends StatelessWidget {
           Icons.history,
           'Historial de tomas',
           () => _open(context, HistoryScreen(store: store)),
+        ),
+        _item(
+          context,
+          Icons.notifications_outlined,
+          'Notificaciones',
+          () => _open(
+            context,
+            NotificationsScreen(store: notifications, showThreshold: true),
+          ),
         ),
         const SizedBox(height: 16),
         OutlinedButton.icon(

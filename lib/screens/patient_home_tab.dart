@@ -4,7 +4,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../core/format.dart';
 import '../models/app_user.dart';
 import '../models/medication.dart';
+import '../services/notification_store.dart';
 import '../services/patient_store.dart';
+import 'notifications_screen.dart';
 import 'medical_profile_screen.dart';
 import 'qr_screen.dart';
 
@@ -13,14 +15,27 @@ import 'qr_screen.dart';
 class PatientHomeTab extends StatelessWidget {
   final AppUser user;
   final PatientStore store;
+  final NotificationStore notifications;
   final VoidCallback onSeeMedications;
 
   const PatientHomeTab({
     super.key,
     required this.user,
     required this.store,
+    required this.notifications,
     required this.onSeeMedications,
   });
+
+  void _openNotifications(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(
+          store: notifications,
+          showThreshold: true,
+        ),
+      ),
+    );
+  }
 
   void _completeProfile(BuildContext context) {
     Navigator.of(context).push(
@@ -97,6 +112,11 @@ class PatientHomeTab extends StatelessWidget {
             const Text('Paciente',
                 style: TextStyle(fontSize: 12, color: Colors.grey)),
           ],
+        ),
+        const Spacer(),
+        NotificationBell(
+          store: notifications,
+          onPressed: () => _openNotifications(context),
         ),
       ],
     );

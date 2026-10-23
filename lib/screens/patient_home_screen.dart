@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../core/format.dart';
+import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import 'medication_reminder.dart';
 import 'medications_tab.dart';
@@ -29,6 +31,8 @@ class PatientHomeScreen extends StatefulWidget {
 
 class _PatientHomeScreenState extends State<PatientHomeScreen> {
   late final PatientStore _store = PatientStore(uid: widget.user.uid);
+  late final NotificationStore _notifs =
+      NotificationStore(uid: widget.user.uid);
   int _tabIndex = 0;
   Timer? _reminderTimer;
   bool _showingReminder = false;
@@ -47,16 +51,42 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   void dispose() {
     _reminderTimer?.cancel();
     _store.dispose();
+    _notifs.dispose();
     super.dispose();
   }
 
+  /// RF-14: avisa una vez al día de cada medicamento cuyos días
+  /// restantes llegaron al umbral configurado.
+  void _checkLowStock(DateTime now) {
+    for (final m in _store.medications) {
+      if (m.daysRemaining > _notifs.lowStockThreshold) continue;
+      if (!_notifs.shouldNotifyLowStock(m.id, now)) continue;
+      final body = m.daysRemaining <= 0
+          ? 'Se agotó ${m.name}. Repón el medicamento.'
+          : '${m.name}: ${daysRemainingText(m.daysRemaining).toLowerCase()}. '
+              'Repón el medicamento pronto.';
+      _notifs.add('Medicamento por agotarse', body);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Medicamento por agotarse: ${m.name}')),
+        );
+      }
+    }
+  }
+
   Future<void> _checkReminders() async {
-    if (!mounted || _showingReminder) return;
+    if (!mounted) return;
+    _checkLowStock(DateTime.now());
+    if (_showingReminder) return;
     final dose = _store.nextDueDose(DateTime.now());
     if (dose == null) return;
 
     _showingReminder = true;
     _store.markAlerted(dose);
+    _notifs.add(
+      'Recordatorio de medicamento',
+      'Es hora de tomar ${dose.medication.name} ${dose.medication.dose}.',
+    );
     await showMedicationReminder(
       context: context,
       store: _store,
@@ -75,12 +105,14 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
             PatientHomeTab(
               user: widget.user,
               store: _store,
+              notifications: _notifs,
               onSeeMedications: () => setState(() => _tabIndex = 1),
             ),
             MedicationsTab(store: _store),
             ProfileTab(
               user: widget.user,
               store: _store,
+              notifications: _notifs,
               authService: widget.authService,
             ),
           ],

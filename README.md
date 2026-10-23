@@ -105,6 +105,26 @@ oficial (18 pantallas) y a la especificación de requerimientos.
     nombre, el tipo de sangre y el código; los datos clínicos se
     consultan de nuevo cada vez (RNF-01). Si el paciente actualizó su
     perfil, su QR cambió y hay que escanearlo otra vez (RF-06).
+- **Notificaciones dentro de la app (campana)** — `notification_store.dart`
+  y `notifications_screen.dart`, para paciente y médico:
+  - Paciente: recordatorio de toma, medicamento por agotarse (RF-14,
+    umbral configurable de 1 a 10 días, un aviso por día) y «Tu perfil
+    médico fue consultado» cuando un médico escanea su QR (RNF-08).
+  - Médico: cuenta aprobada o rechazada.
+  - Son avisos dentro de la app. Las notificaciones del sistema con la
+    app cerrada (RF-11) llegan con flutter_local_notifications en
+    Android.
+- **Verificación de médicos** — al registrarse como personal médico se
+  piden documento, registro médico y especialidad. La cuenta queda
+  *pendiente* y no puede escanear ni ver pacientes hasta que un
+  administrador la apruebe (`staff_verification_screen.dart`,
+  `admin_home_screen.dart`). Es una verificación manual por un
+  administrador: comprobar el registro contra el ReTHUS del Ministerio
+  de Salud necesita un servidor y queda para cuando se conecte Firebase.
+  Para demostración existe la cuenta `admin@kardex.com` (su contraseña
+  está en `auth_service.dart`; con Firebase se reemplaza por un rol de
+  administrador asignado en el servidor). Las cuentas de médico creadas
+  antes de esta función se consideran aprobadas.
 - **Recordatorio de medicamentos (mockup 10, RF-11)** —
   `medication_reminder.dart`: cuando llega la hora de una toma (revisión
   cada 10 segundos, desvío menor a 1 minuto) aparece a pantalla completa

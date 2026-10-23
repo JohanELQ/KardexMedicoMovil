@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../core/validators.dart';
 import '../models/app_user.dart';
@@ -23,6 +24,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _documentCtrl = TextEditingController();
+  final _licenseCtrl = TextEditingController();
+  final _specialtyCtrl = TextEditingController();
   UserRole _role = UserRole.paciente;
 
   bool _obscurePassword = true;
@@ -47,6 +51,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordCtrl.removeListener(_updatePasswordChecklist);
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _documentCtrl.dispose();
+    _licenseCtrl.dispose();
+    _specialtyCtrl.dispose();
     super.dispose();
   }
 
@@ -74,6 +81,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
       role: _role,
+      professional: _role == UserRole.personalMedico
+          ? ProfessionalData(
+              document: _documentCtrl.text.trim(),
+              license: _licenseCtrl.text.trim(),
+              specialty: _specialtyCtrl.text.trim(),
+            )
+          : null,
     );
 
     final result = await widget.authService.register(data);
@@ -83,7 +97,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cuenta creada correctamente')),
+        SnackBar(
+          content: Text(_role == UserRole.personalMedico
+              ? 'Cuenta creada. Un administrador verificará tus datos '
+                  'antes de que puedas escanear.'
+              : 'Cuenta creada correctamente'),
+        ),
       );
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -170,6 +189,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     setState(() => _role = selection.first);
                   },
                 ),
+
+                if (_role == UserRole.personalMedico) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.verified_user_outlined,
+                            size: 18, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Para proteger a los pacientes, un administrador '
+                            'verifica a los médicos antes de darles acceso al '
+                            'escaneo.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _label('Documento de identidad'),
+                  TextFormField(
+                    controller: _documentCtrl,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 12,
+                    decoration: _fieldDecoration('Solo números'),
+                    validator: Validators.document,
+                  ),
+                  _label('Registro médico / tarjeta profesional'),
+                  TextFormField(
+                    controller: _licenseCtrl,
+                    maxLength: 20,
+                    decoration: _fieldDecoration('Ej. RM-123456'),
+                    validator: Validators.professionalLicense,
+                  ),
+                  _label('Especialidad'),
+                  TextFormField(
+                    controller: _specialtyCtrl,
+                    maxLength: 60,
+                    decoration: _fieldDecoration('Ej. Medicina general'),
+                    validator: Validators.specialty,
+                  ),
+                ],
 
                 if (_submitError != null) ...[
                   const SizedBox(height: 16),
@@ -259,6 +329,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
+
+  InputDecoration _fieldDecoration(String hint) => InputDecoration(
+        hintText: hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      );
 
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),

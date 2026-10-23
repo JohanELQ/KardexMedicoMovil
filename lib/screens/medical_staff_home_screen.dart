@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import '../core/format.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import '../services/notification_store.dart';
 import '../services/scan_history_store.dart';
+import 'notifications_screen.dart';
 import 'scan_history_screen.dart';
 import 'scan_patient_qr_screen.dart';
 import 'staff_patients_tab.dart';
 import 'staff_profile_tab.dart';
+import 'staff_verification_screen.dart';
 
 /// Pantalla de inicio del personal médico (mockup 6, RF-03).
 ///
@@ -32,11 +35,15 @@ class MedicalStaffHomeScreen extends StatefulWidget {
 class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
   late final ScanHistoryStore _history =
       ScanHistoryStore(uid: widget.user.uid);
+  late final NotificationStore _notifs =
+      NotificationStore(uid: widget.user.uid);
   int _tabIndex = 0;
+  late VerificationStatus _status = widget.user.verification;
 
   @override
   void dispose() {
     _history.dispose();
+    _notifs.dispose();
     super.dispose();
   }
 
@@ -50,7 +57,10 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
   void _openScanner() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ScanPatientQrScreen(history: _history),
+        builder: (_) => ScanPatientQrScreen(
+          history: _history,
+          staffEmail: widget.user.email,
+        ),
       ),
     );
   }
@@ -63,14 +73,25 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
     );
   }
 
-  void _notAvailableYet(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature todavía no está disponible')),
+  void _openNotifications() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationsScreen(store: _notifs),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // Sin verificación aprobada no hay acceso al escaneo ni a pacientes.
+    if (_status != VerificationStatus.approved) {
+      return StaffVerificationScreen(
+        user: widget.user,
+        authService: widget.authService,
+        status: _status,
+        onStatusChanged: (s) => setState(() => _status = s),
+      );
+    }
     return Scaffold(
       body: SafeArea(
         child: IndexedStack(
@@ -131,9 +152,9 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
                 ],
               ),
             ),
-            IconButton(
-              icon: const Icon(Icons.notifications_none),
-              onPressed: () => _notAvailableYet('Las notificaciones'),
+            NotificationBell(
+              store: _notifs,
+              onPressed: _openNotifications,
             ),
           ],
         ),
@@ -165,7 +186,7 @@ class _MedicalStaffHomeScreenState extends State<MedicalStaffHomeScreen> {
                 _quickAccessItem(
                   Icons.notifications_outlined,
                   'Notificaciones',
-                  onTap: () => _notAvailableYet('Las notificaciones'),
+                  onTap: _openNotifications,
                 ),
               ],
             );

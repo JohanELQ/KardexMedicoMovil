@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
+import 'admin_home_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import 'welcome_screen.dart';
@@ -100,12 +101,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (result.success) {
       await _saveRememberedEmail(data.email);
       if (!mounted) return;
+      final user = result.user!;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => WelcomeScreen(
-            user: result.user!,
-            authService: widget.authService,
-          ),
+          builder: (_) => user.role == UserRole.administrador
+              ? AdminHomeScreen(user: user, authService: widget.authService)
+              : WelcomeScreen(user: user, authService: widget.authService),
         ),
       );
     } else {

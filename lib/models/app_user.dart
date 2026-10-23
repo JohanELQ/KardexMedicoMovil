@@ -1,5 +1,5 @@
 /// Rol del usuario dentro de la app (RF-01, RF-03).
-enum UserRole { paciente, personalMedico }
+enum UserRole { paciente, personalMedico, administrador }
 
 extension UserRoleLabel on UserRole {
   String get label {
@@ -8,8 +8,56 @@ extension UserRoleLabel on UserRole {
         return 'Paciente';
       case UserRole.personalMedico:
         return 'Personal médico';
+      case UserRole.administrador:
+        return 'Administrador';
     }
   }
+}
+
+/// Estado de la verificación profesional de un médico.
+///
+/// Un médico recién registrado queda en [pending] y no puede usar el
+/// escaneo hasta que un administrador lo apruebe: según RF-08 el personal
+/// médico ve datos de emergencia sin que el paciente autorice, así que
+/// hay que comprobar quién es antes de darle ese acceso.
+enum VerificationStatus { pending, approved, rejected }
+
+extension VerificationStatusLabel on VerificationStatus {
+  String get label {
+    switch (this) {
+      case VerificationStatus.pending:
+        return 'Pendiente';
+      case VerificationStatus.approved:
+        return 'Aprobada';
+      case VerificationStatus.rejected:
+        return 'Rechazada';
+    }
+  }
+}
+
+/// Datos profesionales que se piden al registrar un médico.
+class ProfessionalData {
+  final String document; // documento de identidad
+  final String license; // registro médico / tarjeta profesional
+  final String specialty;
+
+  const ProfessionalData({
+    required this.document,
+    required this.license,
+    required this.specialty,
+  });
+
+  Map<String, String> toMap() => {
+        'document': document,
+        'license': license,
+        'specialty': specialty,
+      };
+
+  factory ProfessionalData.fromMap(Map<String, dynamic> m) => ProfessionalData(
+        document: (m['document'] ?? '') as String,
+        license: (m['license'] ?? '') as String,
+        specialty: (m['specialty'] ?? '') as String,
+      );
 }
 
 /// Contacto de emergencia (RF-04, RF-23).
@@ -82,10 +130,14 @@ class RegisterData {
   final String password;
   final UserRole role;
 
+  /// Solo para personal médico: se usa para la verificación.
+  final ProfessionalData? professional;
+
   const RegisterData({
     required this.email,
     required this.password,
     required this.role,
+    this.professional,
   });
 }
 
@@ -108,11 +160,18 @@ class AppUser {
   final String fullName;
   final String phone;
 
+  /// Verificación profesional (solo aplica al personal médico; para los
+  /// demás roles siempre es [VerificationStatus.approved]).
+  final VerificationStatus verification;
+  final ProfessionalData? professional;
+
   const AppUser({
     required this.uid,
     required this.email,
     required this.role,
     this.fullName = '',
     this.phone = '',
+    this.verification = VerificationStatus.approved,
+    this.professional,
   });
 }

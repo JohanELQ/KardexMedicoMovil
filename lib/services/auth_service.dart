@@ -41,6 +41,24 @@ abstract class AuthService {
   Future<RegisterResult> register(RegisterData data);
   Future<LoginResult> login(LoginData data);
   Future<void> requestPasswordReset(String email);
+
+  /// Verificación de médicos (la usa el administrador).
+  Future<List<DoctorRequest>> doctorRequests();
+  Future<void> setVerification(String email, VerificationStatus status);
+  Future<VerificationStatus> verificationOf(String email);
+}
+
+/// Solicitud de verificación de un médico.
+class DoctorRequest {
+  final String email;
+  final ProfessionalData professional;
+  final VerificationStatus status;
+
+  const DoctorRequest({
+    required this.email,
+    required this.professional,
+    required this.status,
+  });
 }
 
 /// Implementación local para desarrollar y probar la UI sin depender
@@ -79,19 +97,56 @@ class MockAuthService implements AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_storageKey);
-      if (raw == null || raw.isEmpty) return;
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      decoded.forEach((email, value) {
-        final m = Map<String, dynamic>.from(value as Map);
-        _accounts[email] = {
-          'salt': m['salt'] as String,
-          'hash': m['hash'] as String,
-          'role': m['role'] as String,
-        };
-      });
+      if (raw != null && raw.isNotEmpty) {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        decoded.forEach((email, value) {
+          final m = Map<String, dynamic>.from(value as Map);
+          _accounts[email] = {
+            for (final e in m.entries) e.key: e.value as String,
+          };
+        });
+      }
     } catch (_) {
       // Si el almacenamiento falla o está dañado, se empieza vacío.
     }
+    _ensureDemoAdmin();
+  }
+
+  /// Cuenta de administrador SOLO PARA DEMOSTRACIÓN, para poder aprobar
+  /// médicos mientras no hay servidor. Con Firebase se reemplaza por un
+  /// rol de administrador asignado en el servidor (nunca una contraseña
+  /// escrita en el código).
+  static const demoAdminEmail = 'admin@kardex.com';
+  static const _demoAdminPassword = 'Admin2026!';
+
+  void _ensureDemoAdmin() {
+    if (_accounts.containsKey(demoAdminEmail)) return;
+    final salt = _newSalt();
+    _accounts[demoAdminEmail] = {
+      'salt': salt,
+      'hash': _hash(salt, _demoAdminPassword),
+      'role': UserRole.administrador.name,
+      'status': VerificationStatus.approved.name,
+    };
+  }
+
+  static VerificationStatus _statusOf(Map<String, String>? account) {
+    // Las cuentas guardadas antes de existir la verificación no tienen
+    // estado: se consideran aprobadas para no dejarlas fuera.
+    final raw = account?['status'];
+    for (final s in VerificationStatus.values) {
+      if (s.name == raw) return s;
+    }
+    return VerificationStatus.approved;
+  }
+
+  static ProfessionalData? _professionalOf(Map<String, String>? account) {
+    if (account == null || account['license'] == null) return null;
+    return ProfessionalData(
+      document: account['document'] ?? '',
+      license: account['license'] ?? '',
+      specialty: account['specialty'] ?? '',
+    );
   }
 
   Future<void> _persist() async {
@@ -123,11 +178,25 @@ class MockAuthService implements AuthService {
       );
     }
 
+    // Nadie puede registrarse como administrador desde la app.
+    final role = data.role == UserRole.administrador
+        ? UserRole.paciente
+        : data.role;
+    final isDoctor = role == UserRole.personalMedico;
+    final prof = data.professional;
+
     final salt = _newSalt();
     _accounts[emailKey] = {
       'salt': salt,
       'hash': _hash(salt, data.password),
-      'role': data.role.name,
+      'role': role.name,
+      // Los médicos quedan pendientes hasta que un administrador los
+      // apruebe; los demás roles no necesitan verificación.
+      'status': (isDoctor
+              ? VerificationStatus.pending
+              : VerificationStatus.approved)
+          .name,
+      if (isDoctor && prof != null) ...prof.toMap(),
     };
     await _persist();
     return const RegisterResult.ok();
@@ -174,12 +243,50 @@ class MockAuthService implements AuthService {
     _failedAttempts.remove(emailKey);
     _lockedUntil.remove(emailKey);
 
-    final role = account?['role'] == UserRole.personalMedico.name
-        ? UserRole.personalMedico
-        : UserRole.paciente;
-    return LoginResult.ok(
-      AppUser(uid: emailKey, email: data.email.trim(), role: role),
+    final roleName = account?['role'];
+    final role = UserRole.values.firstWhere(
+      (r) => r.name == roleName,
+      orElse: () => UserRole.paciente,
     );
+    return LoginResult.ok(
+      AppUser(
+        uid: emailKey,
+        email: data.email.trim(),
+        role: role,
+        verification: _statusOf(account),
+        professional: _professionalOf(account),
+      ),
+    );
+  }
+
+  @override
+  Future<List<DoctorRequest>> doctorRequests() async {
+    await _ensureLoaded();
+    return [
+      for (final e in _accounts.entries)
+        if (e.value['role'] == UserRole.personalMedico.name)
+          DoctorRequest(
+            email: e.key,
+            professional: _professionalOf(e.value) ??
+                const ProfessionalData(document: '', license: '', specialty: ''),
+            status: _statusOf(e.value),
+          ),
+    ];
+  }
+
+  @override
+  Future<void> setVerification(String email, VerificationStatus status) async {
+    await _ensureLoaded();
+    final account = _accounts[email.trim().toLowerCase()];
+    if (account == null) return;
+    account['status'] = status.name;
+    await _persist();
+  }
+
+  @override
+  Future<VerificationStatus> verificationOf(String email) async {
+    await _ensureLoaded();
+    return _statusOf(_accounts[email.trim().toLowerCase()]);
   }
 
   @override

@@ -25,6 +25,7 @@ class EmergencyInfo {
   /// Identificador opaco del paciente y código leído (sirven para el
   /// historial de escaneos del personal médico).
   final String ownerId;
+  final String patientUid;
   final String code;
   final String fullName;
   final int? age;
@@ -37,6 +38,7 @@ class EmergencyInfo {
 
   const EmergencyInfo({
     required this.ownerId,
+    required this.patientUid,
     required this.code,
     required this.fullName,
     required this.age,
@@ -110,6 +112,7 @@ class EmergencyLookup {
 
         return EmergencyInfo(
           ownerId: ownerId,
+          patientUid: uid,
           code: code,
           fullName: ((pm['fullName'] ?? '') as String).trim(),
           age: pm['age'] as int?,

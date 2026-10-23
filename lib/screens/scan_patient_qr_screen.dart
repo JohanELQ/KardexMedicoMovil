@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../core/format.dart';
 import '../services/emergency_lookup.dart';
+import '../services/notification_store.dart';
 import '../services/scan_history_store.dart';
 import 'emergency_view_screen.dart';
 
@@ -16,7 +18,11 @@ class ScanPatientQrScreen extends StatefulWidget {
   /// Si se entrega, cada escaneo válido se anota en el historial.
   final ScanHistoryStore? history;
 
-  const ScanPatientQrScreen({super.key, this.history});
+  /// Correo del médico que escanea: se usa para avisar al paciente quién
+  /// consultó su perfil.
+  final String? staffEmail;
+
+  const ScanPatientQrScreen({super.key, this.history, this.staffEmail});
 
   @override
   State<ScanPatientQrScreen> createState() => _ScanPatientQrScreenState();
@@ -95,6 +101,15 @@ class _ScanPatientQrScreenState extends State<ScanPatientQrScreen> {
     }
 
     widget.history?.add(info);
+    // RNF-08: el paciente se entera de que consultaron su perfil.
+    final who = widget.staffEmail == null
+        ? 'Un profesional de la salud'
+        : 'El profesional ${nameFromEmail(widget.staffEmail!)}';
+    NotificationStore.addFor(
+      info.patientUid,
+      'Tu perfil médico fue consultado',
+      '$who consultó tu información de emergencia.',
+    );
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => EmergencyViewScreen(info: info),
