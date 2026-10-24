@@ -1,3 +1,6 @@
+//Agregar estos paquetes en la terminal
+//flutter pub add geolocator
+//flutter pub add flutter_local_notifications
 
 import 'dart:math' as math;
 import 'package:geolocator/geolocator.dart';
