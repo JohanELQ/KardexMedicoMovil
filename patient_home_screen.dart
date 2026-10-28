@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'pharmacy_geofencing.dart';
 
 const blue = Color(0xFF1675D1);
 const ink = Color(0xFF20334A);
@@ -132,4 +133,48 @@ class _DoseCard extends StatelessWidget {
         color: done ? const Color(0xFF19A765) : const Color(0xFFC8D0D8)),
     ]),
   );
+}
+
+//Subir datos de ubicacion de farmacias desde una base de datos u otra fuente confiable
+final geofencing = PharmacyGeofencing(
+  radiusMeters: 300,
+);
+
+final medications = [
+  NeededMedication(
+    name: 'Paracetamol',
+    needsRefill: true,
+  ),
+];
+
+final pharmacies = [
+  Pharmacy(
+    id: 'farmacia_001',
+    name: 'Farmacia cercana',
+    latitude: 3.4516,
+    longitude: -76.5320,
+  ),
+];
+
+Future<void> checkPharmacies() async {
+  try {
+    final position = await geofencing.getCurrentPosition();
+
+    final nearby = geofencing.findNearbyPharmacies(
+      userPosition: position,
+      pharmacies: pharmacies,
+      medications: medications,
+    );
+
+    for (final pharmacy in nearby) {
+      debugPrint(
+        'Tienes medicamentos pendientes. '
+        'Estás cerca de ${pharmacy.name}.',
+      );
+
+      // Aquí puedes mostrar una notificación local.
+    }
+  } catch (e) {
+    debugPrint('No se pudo comprobar la ubicación: $e');
+  }
 }
