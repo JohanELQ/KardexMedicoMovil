@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/format.dart';
 import '../services/notification_store.dart';
+import '../services/patient_store.dart';
+import '../services/pharmacy_geofencing.dart';
 
 /// Centro de notificaciones (la campana). Al abrirlo, las notificaciones
 /// se marcan como leídas.
@@ -12,10 +14,14 @@ class NotificationsScreen extends StatefulWidget {
   final NotificationStore store;
   final bool showThreshold;
 
+  /// Solo paciente: permite elegir los avisos de farmacia cercana (RF-18).
+  final PatientStore? patientStore;
+
   const NotificationsScreen({
     super.key,
     required this.store,
     this.showThreshold = false,
+    this.patientStore,
   });
 
   @override
@@ -36,6 +42,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     };
     WidgetsBinding.instance
         .addPostFrameCallback((_) => widget.store.markAllRead());
+  }
+
+  void _snack(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Activa o desactiva los avisos de farmacia. Al activarlos pide el
+  /// permiso de ubicación (RF-22) y solo queda activo si se concede.
+  Future<void> _togglePharmacy(bool value) async {
+    if (!value) {
+      widget.store.setPharmacyAlerts(false);
+      return;
+    }
+    try {
+      await PharmacyGeofencing().getCurrentPosition();
+      widget.store.setPharmacyAlerts(true);
+      _snack('Avisos de farmacia activados');
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
+  /// Demostración: simula una farmacia en tu ubicación actual para ver
+  /// cómo llega el aviso, sin tener que caminar hasta una farmacia real.
+  Future<void> _testPharmacy() async {
+    final store = widget.patientStore;
+    if (store == null) return;
+    try {
+      final pos = await PharmacyGeofencing().getCurrentPosition();
+      final low = [
+        for (final m in store.medications)
+          if (m.daysRemaining <= widget.store.lowStockThreshold) m.name,
+      ];
+      final demo = Pharmacy(
+        id: 'demo',
+        name: 'Farmacia de prueba',
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+      );
+      widget.store.add('Farmacia cerca', pharmacyAlertBody(demo, low));
+    } catch (e) {
+      _snack(e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
   @override
@@ -85,6 +134,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
+              ],
+              if (widget.patientStore != null) ...[
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Avisarme cerca de una farmacia',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  subtitle: const Text(
+                    'Usa tu ubicación mientras la app está abierta, solo si '
+                    'te queda poco de un medicamento. Un aviso por farmacia '
+                    'cada 24 horas.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  value: widget.store.pharmacyAlerts,
+                  onChanged: _togglePharmacy,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _testPharmacy,
+                    icon: const Icon(Icons.science_outlined, size: 18),
+                    label: const Text('Probar aviso de farmacia (demostración)'),
+                  ),
+                ),
+                const SizedBox(height: 12),
               ],
               if (items.isEmpty)
                 Padding(

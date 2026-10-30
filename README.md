@@ -210,3 +210,11 @@ Pendientes para una próxima entrega: RF-11/RF-14 (notificaciones
 de tomas y stock bajo), RF-16 a RF-18 (geofencing), RF-22 (permisos),
 RF-23 (varios contactos de emergencia), almacenamiento persistente
 (RNF-02) y Firebase.
+
+## Geofencing de farmacias (RF-16/17/18)
+
+- Lógica base de JohanELQ (`pharmacy_geofencing.dart`), integrada en `lib/services/pharmacy_geofencing.dart`.
+- Avisa solo si al paciente le queda poco de un medicamento (umbral de RF-14) y está a menos de 300 m de una farmacia, una vez por farmacia cada 24 h.
+- Se activa en Notificaciones ("Avisarme cerca de una farmacia"), pide permiso de ubicación y revisa cada 2 min con la app abierta.
+- Hay un botón "Probar aviso de farmacia" para la demostración.
+- Limitaciones: lista de farmacias fija en `lib/core/pharmacies.dart` (ejemplo en Cali); no usa la API de Geofencing de Google ni funciona con la app cerrada (RNF-05 pendiente).

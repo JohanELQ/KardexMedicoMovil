@@ -32,6 +32,7 @@ class PatientHomeTab extends StatelessWidget {
         builder: (_) => NotificationsScreen(
           store: notifications,
           showThreshold: true,
+          patientStore: store,
         ),
       ),
     );

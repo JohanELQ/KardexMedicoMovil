@@ -96,7 +96,11 @@ class ProfileTab extends StatelessWidget {
           'Notificaciones',
           () => _open(
             context,
-            NotificationsScreen(store: notifications, showThreshold: true),
+            NotificationsScreen(
+              store: notifications,
+              showThreshold: true,
+              patientStore: store,
+            ),
           ),
         ),
         const SizedBox(height: 16),

@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../core/format.dart';
+import '../core/pharmacies.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
+import '../services/pharmacy_geofencing.dart';
 import 'medication_reminder.dart';
 import 'medications_tab.dart';
 import 'patient_home_tab.dart';
@@ -36,6 +38,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   int _tabIndex = 0;
   Timer? _reminderTimer;
   bool _showingReminder = false;
+  final PharmacyGeofencing _geofencing = PharmacyGeofencing();
+  DateTime? _lastPharmacyCheck;
+  bool _checkingPharmacies = false;
 
   @override
   void initState() {
@@ -74,9 +79,53 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     }
   }
 
+  /// RF-16 a RF-18: si el paciente activó los avisos y le queda poco de
+  /// algún medicamento, revisa (como máximo cada 2 minutos y solo con la
+  /// app abierta) si está cerca de una farmacia.
+  Future<void> _checkPharmacies(DateTime now) async {
+    if (!_notifs.pharmacyAlerts || _checkingPharmacies) return;
+    final last = _lastPharmacyCheck;
+    if (last != null && now.difference(last) < const Duration(minutes: 2)) {
+      return;
+    }
+    final low = _store.medications
+        .where((m) => m.daysRemaining <= _notifs.lowStockThreshold)
+        .toList();
+    if (low.isEmpty) return;
+
+    _checkingPharmacies = true;
+    _lastPharmacyCheck = now;
+    try {
+      final position = await _geofencing.getCurrentPosition();
+      final nearby = _geofencing.findNearbyPharmacies(
+        userPosition: position,
+        pharmacies: kPharmacies,
+        medications: [
+          for (final m in low) NeededMedication(name: m.name, needsRefill: true),
+        ],
+      );
+      for (final p in nearby) {
+        _notifs.add(
+          'Farmacia cerca',
+          pharmacyAlertBody(p, [for (final m in low) m.name]),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Estás cerca de ${p.name}')),
+          );
+        }
+      }
+    } catch (_) {
+      // Sin permiso o sin ubicación: se intenta de nuevo más tarde.
+    } finally {
+      _checkingPharmacies = false;
+    }
+  }
+
   Future<void> _checkReminders() async {
     if (!mounted) return;
     _checkLowStock(DateTime.now());
+    _checkPharmacies(DateTime.now());
     if (_showingReminder) return;
     final dose = _store.nextDueDose(DateTime.now());
     if (dose == null) return;

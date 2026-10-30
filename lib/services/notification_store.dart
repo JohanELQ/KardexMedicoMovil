@@ -65,11 +65,15 @@ class NotificationStore extends ChangeNotifier {
   final List<AppNotification> _items = []; // más reciente primero
   final Map<String, String> _lowStockDay = {}; // medicamento -> 'aaaa-mm-dd'
   int _threshold = defaultThreshold;
+  bool _pharmacyAlerts = false;
   bool _disposed = false;
 
   List<AppNotification> get items => List.unmodifiable(_items);
   int get unread => _items.where((n) => !n.read).length;
   int get lowStockThreshold => _threshold;
+
+  /// RF-18: si el paciente activó los avisos de farmacia cercana.
+  bool get pharmacyAlerts => _pharmacyAlerts;
 
   String get _key => '$_prefix$uid';
 
@@ -108,6 +112,7 @@ class NotificationStore extends ChangeNotifier {
         ..clear()
         ..addAll(_itemsFrom(data));
       _threshold = (data['threshold'] ?? defaultThreshold) as int;
+      _pharmacyAlerts = (data['pharmacyAlerts'] ?? false) as bool;
       _lowStockDay
         ..clear()
         ..addAll(Map<String, String>.from(
@@ -126,6 +131,7 @@ class NotificationStore extends ChangeNotifier {
         jsonEncode({
           'items': _items.map((n) => n.toJson()).toList(),
           'threshold': _threshold,
+          'pharmacyAlerts': _pharmacyAlerts,
           'lowStockDay': _lowStockDay,
         }),
       );
@@ -196,6 +202,12 @@ class NotificationStore extends ChangeNotifier {
 
   void clear() {
     _items.clear();
+    _save();
+    notifyListeners();
+  }
+
+  void setPharmacyAlerts(bool value) {
+    _pharmacyAlerts = value;
     _save();
     notifyListeners();
   }
