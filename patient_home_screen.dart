@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'notifications_screen.dart';
 
 const blue = Color(0xFF1675D1);
 const ink = Color(0xFF20334A);
@@ -133,3 +134,21 @@ class _DoseCard extends StatelessWidget {
     ]),
   );
 }
+
+ListTile(
+  leading: const Icon(
+    Icons.notifications_outlined,
+    color: Colors.blue,
+  ),
+  title: const Text('Notificaciones'),
+  subtitle: const Text('Recordatorios y alertas de Kardex'),
+  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+  onTap: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NotificationsScreen(),
+      ),
+    );
+  },
+),
