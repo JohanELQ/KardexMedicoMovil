@@ -218,3 +218,9 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - Se activa en Notificaciones ("Avisarme cerca de una farmacia"), pide permiso de ubicación y revisa cada 2 min con la app abierta.
 - Hay un botón "Probar aviso de farmacia" para la demostración.
 - Limitaciones: lista de farmacias fija en `lib/core/pharmacies.dart` (ejemplo en Cali); no usa la API de Geofencing de Google ni funciona con la app cerrada (RNF-05 pendiente).
+
+## Permisos y modo sin conexión (mockups 17 y 18, RF-22)
+
+- `permissions_screen.dart`: estado de cámara, ubicación y notificaciones, con interruptores (pide el permiso o abre los ajustes del celular). En el navegador solo muestra una nota, porque ahí los permisos se manejan desde el candado de la barra de direcciones.
+- `offline_mode_screen.dart`: pantalla informativa. Los datos ya se guardan en el dispositivo; la sincronización en la nube sigue pendiente (Firebase).
+- Se abren desde Perfil.

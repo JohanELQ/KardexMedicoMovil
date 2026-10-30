@@ -8,6 +8,8 @@ import 'history_screen.dart';
 import 'login_screen.dart';
 import 'medical_profile_screen.dart';
 import 'notifications_screen.dart';
+import 'offline_mode_screen.dart';
+import 'permissions_screen.dart';
 import 'qr_screen.dart';
 
 /// Pestaña "Perfil" del paciente (mockup 16): accesos al perfil médico,
@@ -102,6 +104,18 @@ class ProfileTab extends StatelessWidget {
               patientStore: store,
             ),
           ),
+        ),
+        _item(
+          context,
+          Icons.security_outlined,
+          'Permisos del dispositivo',
+          () => _open(context, const PermissionsScreen()),
+        ),
+        _item(
+          context,
+          Icons.cloud_off_outlined,
+          'Modo sin conexión',
+          () => _open(context, const OfflineModeScreen()),
         ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
