@@ -224,3 +224,11 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - `permissions_screen.dart`: estado de cámara, ubicación y notificaciones, con interruptores (pide el permiso o abre los ajustes del celular). En el navegador solo muestra una nota, porque ahí los permisos se manejan desde el candado de la barra de direcciones.
 - `offline_mode_screen.dart`: pantalla informativa. Los datos ya se guardan en el dispositivo; la sincronización en la nube sigue pendiente (Firebase).
 - Se abren desde Perfil.
+
+## Farmacias editables (RF-16)
+
+- `lib/services/pharmacy_store.dart` guarda en el dispositivo la lista de farmacias, con nombre, dirección, latitud, longitud y radio de detección (150 m por defecto).
+- Se administran desde Perfil → Notificaciones → *Administrar farmacias*. Al agregar una se puede usar el botón *Usar mi ubicación actual* estando frente a la farmacia.
+- Viene una farmacia de ejemplo (la de Cali, de JohanELQ); hay que agregar las reales.
+- El registro de avisos por farmacia (una vez cada 24 h, RF-18) ahora se guarda y sobrevive al cerrar la app.
+- Limitación: la detección corre con la app abierta; falta la Geofencing API de Google para el segundo plano (RF-17, RNF-05).

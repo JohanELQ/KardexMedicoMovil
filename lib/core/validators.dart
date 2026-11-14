@@ -171,6 +171,53 @@ class Validators {
     return null;
   }
 
+  /// Nombre de una farmacia: obligatorio, 2 a 60 caracteres (RF-16).
+  static String? pharmacyName(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.isEmpty) return 'El nombre de la farmacia es obligatorio';
+    if (v.length < 2 || v.length > 60) {
+      return 'Debe tener entre 2 y 60 caracteres';
+    }
+    return null;
+  }
+
+  /// Dirección de la farmacia: opcional, máximo 100 caracteres.
+  static String? pharmacyAddress(String? value) {
+    final v = value?.trim() ?? '';
+    if (v.length > 100) return 'Máximo 100 caracteres';
+    return null;
+  }
+
+  static double? _parseCoordinate(String? value) =>
+      double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+
+  /// Latitud: número entre -90 y 90 (RF-16).
+  static String? latitude(String? value) {
+    if ((value ?? '').trim().isEmpty) return 'La latitud es obligatoria';
+    final n = _parseCoordinate(value);
+    if (n == null) return 'Escribe un número, por ejemplo 3.4516';
+    if (n < -90 || n > 90) return 'Debe estar entre -90 y 90';
+    return null;
+  }
+
+  /// Longitud: número entre -180 y 180 (RF-16).
+  static String? longitude(String? value) {
+    if ((value ?? '').trim().isEmpty) return 'La longitud es obligatoria';
+    final n = _parseCoordinate(value);
+    if (n == null) return 'Escribe un número, por ejemplo -76.5320';
+    if (n < -180 || n > 180) return 'Debe estar entre -180 y 180';
+    return null;
+  }
+
+  /// Radio de detección en metros: entre 50 y 2000 (RF-16).
+  static String? radiusMeters(String? value) {
+    if ((value ?? '').trim().isEmpty) return 'El radio es obligatorio';
+    final n = int.tryParse((value ?? '').trim());
+    if (n == null) return 'Solo se permiten números enteros';
+    if (n < 50 || n > 2000) return 'Debe estar entre 50 y 2000 metros';
+    return null;
+  }
+
   /// Selección obligatoria de tipo de sangre (RF-01, RF-04).
   static String? bloodType(String? value) {
     if (value == null || value.isEmpty) {

@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import '../services/pharmacy_geofencing.dart';
+import 'pharmacies_screen.dart';
 
 /// Centro de notificaciones (la campana). Al abrirlo, las notificaciones
 /// se marcan como leídas.
@@ -149,6 +150,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   value: widget.store.pharmacyAlerts,
                   onChanged: _togglePharmacy,
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const PharmaciesScreen()),
+                    ),
+                    icon: const Icon(Icons.local_pharmacy_outlined, size: 18),
+                    label: const Text('Administrar farmacias'),
+                  ),
                 ),
                 Align(
                   alignment: Alignment.centerLeft,

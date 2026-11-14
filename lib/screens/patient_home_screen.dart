@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../core/format.dart';
-import '../core/pharmacies.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import '../services/pharmacy_geofencing.dart';
+import '../services/pharmacy_store.dart';
 import 'medication_reminder.dart';
 import 'medications_tab.dart';
 import 'patient_home_tab.dart';
@@ -47,6 +47,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
     super.initState();
     // Cada 10 segundos revisa si llegó la hora de alguna toma, así el
     // aviso sale con menos de 1 minuto de desvío (RF-11, RNF-04).
+    _geofencing.loadHistory();
     _reminderTimer =
         Timer.periodic(const Duration(seconds: 10), (_) => _checkReminders());
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
@@ -99,7 +100,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
       final position = await _geofencing.getCurrentPosition();
       final nearby = _geofencing.findNearbyPharmacies(
         userPosition: position,
-        pharmacies: kPharmacies,
+        pharmacies: PharmacyStore.instance.pharmacies,
         medications: [
           for (final m in low) NeededMedication(name: m.name, needsRefill: true),
         ],
