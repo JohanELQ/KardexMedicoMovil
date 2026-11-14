@@ -4,6 +4,7 @@ import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
+import '../services/system_notifications.dart';
 import 'history_screen.dart';
 import 'login_screen.dart';
 import 'medical_profile_screen.dart';
@@ -34,6 +35,8 @@ class ProfileTab extends StatelessWidget {
 
   /// RF-20: vuelve al inicio de sesión sin cerrar la app.
   void _logout(BuildContext context) {
+    // Los avisos del sistema son de esta cuenta: se quitan al salir.
+    SystemNotifications.instance.cancelAll();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => LoginScreen(authService: authService),

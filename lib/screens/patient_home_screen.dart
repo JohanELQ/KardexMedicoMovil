@@ -9,6 +9,8 @@ import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import '../services/pharmacy_geofencing.dart';
 import '../services/pharmacy_store.dart';
+import '../services/reminder_planner.dart';
+import '../services/system_notifications.dart';
 import 'medication_reminder.dart';
 import 'medications_tab.dart';
 import 'patient_home_tab.dart';
@@ -31,7 +33,8 @@ class PatientHomeScreen extends StatefulWidget {
   State<PatientHomeScreen> createState() => _PatientHomeScreenState();
 }
 
-class _PatientHomeScreenState extends State<PatientHomeScreen> {
+class _PatientHomeScreenState extends State<PatientHomeScreen>
+    with WidgetsBindingObserver {
   late final PatientStore _store = PatientStore(uid: widget.user.uid);
   late final NotificationStore _notifs =
       NotificationStore(uid: widget.user.uid);
@@ -41,12 +44,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
   final PharmacyGeofencing _geofencing = PharmacyGeofencing();
   DateTime? _lastPharmacyCheck;
   bool _checkingPharmacies = false;
+  bool _syncingAlerts = false;
+  bool _syncAgain = false;
 
   @override
   void initState() {
     super.initState();
     // Cada 10 segundos revisa si llegó la hora de alguna toma, así el
     // aviso sale con menos de 1 minuto de desvío (RF-11, RNF-04).
+    WidgetsBinding.instance.addObserver(this);
+    // RF-11: cada cambio en los medicamentos reprograma los avisos del
+    // sistema, que llegan aunque la app esté cerrada.
+    _store.addListener(_syncSystemAlerts);
+    SystemNotifications.storageChanges.addListener(_onStorageChanged);
+    SystemNotifications.instance.requestPermission();
     _geofencing.loadHistory();
     _reminderTimer =
         Timer.periodic(const Duration(seconds: 10), (_) => _checkReminders());
@@ -55,10 +66,49 @@ class _PatientHomeScreenState extends State<PatientHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _store.removeListener(_syncSystemAlerts);
+    SystemNotifications.storageChanges.removeListener(_onStorageChanged);
     _reminderTimer?.cancel();
     _store.dispose();
     _notifs.dispose();
     super.dispose();
+  }
+
+  /// Al volver a la app se leen de nuevo los datos: pudo confirmarse una
+  /// toma desde la notificación mientras estaba cerrada.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _store.reload();
+  }
+
+  void _onStorageChanged() => _store.reload();
+
+  /// RF-11: programa en el sistema los recordatorios de las tomas de los
+  /// próximos días. Se repite si llega otro cambio mientras trabaja.
+  Future<void> _syncSystemAlerts() async {
+    if (_syncingAlerts) {
+      _syncAgain = true;
+      return;
+    }
+    _syncingAlerts = true;
+    try {
+      do {
+        _syncAgain = false;
+        final now = DateTime.now();
+        final alerts = planDoseAlerts(
+          uid: widget.user.uid,
+          now: now,
+          medications: _store.medications,
+          todayDoses: _store.dosesForDay(now),
+        );
+        await SystemNotifications.instance.replaceAll(alerts);
+      } while (_syncAgain);
+    } catch (_) {
+      // Un fallo al programar no debe romper la pantalla.
+    } finally {
+      _syncingAlerts = false;
+    }
   }
 
   /// RF-14: avisa una vez al día de cada medicamento cuyos días

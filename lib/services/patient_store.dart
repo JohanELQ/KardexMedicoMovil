@@ -236,6 +236,62 @@ class PatientStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Vuelve a leer lo guardado en el dispositivo (por ejemplo, después de
+  /// confirmar una toma desde la notificación con la app cerrada).
+  Future<void> reload() => _load();
+
+  /// RF-11: confirma una toma directamente en lo guardado, sin necesitar
+  /// la pantalla. Lo usa el botón «Confirmar toma» de la notificación.
+  /// Devuelve null si salió bien, o el motivo si no se pudo.
+  static Future<String?> confirmDoseInStorage({
+    required String uid,
+    required String medId,
+    required DateTime scheduled,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final key = '$storagePrefix$uid';
+      final raw = prefs.getString(key);
+      if (raw == null || raw.isEmpty) return 'No se encontró tu perfil';
+      final data = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final meds = List<dynamic>.from(data['medications'] as List);
+      final logs = List<dynamic>.from(data['logs'] as List);
+
+      final index = meds.indexWhere((e) => (e as Map)['id'] == medId);
+      if (index < 0) return 'Este medicamento ya no existe';
+      final med = Map<String, dynamic>.from(meds[index] as Map);
+
+      final iso = scheduled.toIso8601String();
+      final already = logs.any((e) {
+        final l = e as Map;
+        return l['medicationId'] == medId && l['scheduled'] == iso;
+      });
+      if (already) return 'Esta toma ya fue confirmada';
+      if (DateTime.now().isAfter(scheduled.add(const Duration(hours: 2)))) {
+        return 'Esta toma ya pasó de las 2 horas y quedó como omitida';
+      }
+      final total = med['totalDoses'] as int;
+      if (total <= 0) return 'No quedan dosis disponibles de ${med['name']}';
+
+      med['totalDoses'] = total - 1;
+      meds[index] = med;
+      logs.add({
+        'medicationId': medId,
+        'medicationName': med['name'],
+        'dose': med['dose'],
+        'scheduled': iso,
+        'takenAt': DateTime.now().toIso8601String(),
+      });
+      data['medications'] = meds;
+      data['logs'] = logs;
+      await prefs.setString(key, jsonEncode(data));
+      return null;
+    } catch (_) {
+      return 'No se pudo confirmar la toma';
+    }
+  }
+
   void deleteMedication(String id) {
     _medications.removeWhere((m) => m.id == id);
     _save();

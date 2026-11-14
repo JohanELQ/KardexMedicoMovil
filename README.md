@@ -232,3 +232,12 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - Viene una farmacia de ejemplo (la de Cali, de JohanELQ); hay que agregar las reales.
 - El registro de avisos por farmacia (una vez cada 24 h, RF-18) ahora se guarda y sobrevive al cerrar la app.
 - Limitación: la detección corre con la app abierta; falta la Geofencing API de Google para el segundo plano (RF-17, RNF-05).
+
+## Recordatorios con la app cerrada (RF-11)
+
+- `lib/services/reminder_planner.dart` calcula las tomas de los próximos 7 días (sin las ya confirmadas y solo mientras alcance el stock).
+- `lib/services/system_notifications.dart` las programa en Android con `flutter_local_notifications`: llegan a la hora exacta aunque la app esté cerrada y sin internet.
+- La notificación tiene los botones **Confirmar toma** (descuenta el stock y guarda la toma en el historial) y **Posponer** (vuelve a avisar en 10 minutos, dentro del margen de 2 horas).
+- Se reprograman al cambiar los medicamentos y al abrir la app, y se borran al cerrar sesión.
+- Requisitos de Android: permisos de notificaciones y alarmas exactas en `AndroidManifest.xml` y *desugaring* en `android/app/build.gradle.kts`.
+- Limitaciones: solo Android (iPhone pendiente); algunos fabricantes (Samsung, Xiaomi) cierran apps en segundo plano, así que conviene quitar la restricción de batería para Kardex.
