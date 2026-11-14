@@ -10,6 +10,7 @@ import '../services/patient_store.dart';
 import '../services/pharmacy_geofencing.dart';
 import '../services/pharmacy_store.dart';
 import '../services/reminder_planner.dart';
+import '../services/stock_alert_planner.dart';
 import '../services/system_notifications.dart';
 import 'medication_reminder.dart';
 import 'medications_tab.dart';
@@ -56,6 +57,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     // RF-11: cada cambio en los medicamentos reprograma los avisos del
     // sistema, que llegan aunque la app esté cerrada.
     _store.addListener(_syncSystemAlerts);
+    // RF-14: si cambia el umbral de días, se reprograman los avisos de stock.
+    _notifs.addListener(_syncSystemAlerts);
     SystemNotifications.storageChanges.addListener(_onStorageChanged);
     SystemNotifications.instance.requestPermission();
     _geofencing.loadHistory();
@@ -68,6 +71,7 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _store.removeListener(_syncSystemAlerts);
+    _notifs.removeListener(_syncSystemAlerts);
     SystemNotifications.storageChanges.removeListener(_onStorageChanged);
     _reminderTimer?.cancel();
     _store.dispose();
@@ -84,8 +88,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
 
   void _onStorageChanged() => _store.reload();
 
-  /// RF-11: programa en el sistema los recordatorios de las tomas de los
-  /// próximos días. Se repite si llega otro cambio mientras trabaja.
+  /// RF-11 y RF-14: programa en el sistema los recordatorios de las tomas
+  /// y los avisos de medicamento por agotarse de los próximos días. Se repite si llega otro cambio mientras trabaja.
   Future<void> _syncSystemAlerts() async {
     if (_syncingAlerts) {
       _syncAgain = true;
@@ -96,12 +100,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
       do {
         _syncAgain = false;
         final now = DateTime.now();
-        final alerts = planDoseAlerts(
-          uid: widget.user.uid,
-          now: now,
-          medications: _store.medications,
-          todayDoses: _store.dosesForDay(now),
-        );
+        final alerts = [
+          ...planDoseAlerts(
+            uid: widget.user.uid,
+            now: now,
+            medications: _store.medications,
+            todayDoses: _store.dosesForDay(now),
+          ),
+          ...planStockAlerts(
+            uid: widget.user.uid,
+            now: now,
+            medications: _store.medications,
+            threshold: _notifs.lowStockThreshold,
+          ),
+        ];
         await SystemNotifications.instance.replaceAll(alerts);
       } while (_syncAgain);
     } catch (_) {

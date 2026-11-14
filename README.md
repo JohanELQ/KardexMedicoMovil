@@ -241,3 +241,9 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - Se reprograman al cambiar los medicamentos y al abrir la app, y se borran al cerrar sesión.
 - Requisitos de Android: permisos de notificaciones y alarmas exactas en `AndroidManifest.xml` y *desugaring* en `android/app/build.gradle.kts`.
 - Limitaciones: solo Android (iPhone pendiente); algunos fabricantes (Samsung, Xiaomi) cierran apps en segundo plano, así que conviene quitar la restricción de batería para Kardex.
+
+## Aviso de medicamento por agotarse con la app cerrada (RF-14)
+
+- `lib/services/stock_alert_planner.dart` programa en Android el aviso cuando los días restantes (RF-13) llegan al umbral que elige el usuario (1 a 10, por defecto 3). Si el umbral ya se alcanzó, el aviso sale a las 9:00.
+- Como máximo un aviso por día por medicamento, con el nombre y los días restantes.
+- Los días del aviso son una proyección (suponen que se toman todas las dosis); se recalculan con el stock real al abrir la app o cambiar los medicamentos, y al cambiar el umbral.
