@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/error_handler.dart';
 import '../core/validators.dart';
 import '../services/auth_service.dart';
 
@@ -37,9 +38,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _submitting = true);
 
-    // No importa el resultado interno: la UI siempre termina en el
-    // mismo mensaje de confirmación (RF-19).
-    await widget.authService.requestPasswordReset(_emailCtrl.text.trim());
+    // No importa si la cuenta existe: la UI siempre termina en el mismo
+    // mensaje de confirmación (RF-19). Solo un fallo de conexión se avisa
+    // aparte (RF-25), porque ahí el enlace no salió y no revela nada de la
+    // cuenta.
+    try {
+      await widget.authService.requestPasswordReset(_emailCtrl.text.trim());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      if (AppErrors.isConnectionError(e)) {
+        AppErrors.show(context, e);
+        return;
+      }
+    }
 
     if (!mounted) return;
     setState(() {

@@ -247,3 +247,10 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - `lib/services/stock_alert_planner.dart` programa en Android el aviso cuando los días restantes (RF-13) llegan al umbral que elige el usuario (1 a 10, por defecto 3). Si el umbral ya se alcanzó, el aviso sale a las 9:00.
 - Como máximo un aviso por día por medicamento, con el nombre y los días restantes.
 - Los días del aviso son una proyección (suponen que se toman todas las dosis); se recalculan con el stock real al abrir la app o cambiar los medicamentos, y al cambiar el umbral.
+
+## Mensajes de error comunes (RF-25)
+
+- `lib/core/error_handler.dart` (`AppErrors`) concentra los avisos de error: convierte cualquier fallo en un mensaje claro (sin internet, tiempo agotado, ubicación apagada o sin permiso, dato con formato incorrecto…) y lo muestra como aviso rojo con botón para cerrarlo.
+- Se usa en inicio de sesión, registro, recuperar contraseña, farmacias, notificaciones y confirmación de tomas. Si el servicio falla (por ejemplo sin conexión), el botón vuelve a quedar libre y se explica qué pasó, en vez de quedarse cargando.
+- El error del formulario desaparece en cuanto la persona empieza a corregir el correo o la contraseña.
+- En recuperar contraseña solo se avisa aparte un fallo de conexión; si no, siempre sale el mismo mensaje para no revelar si la cuenta existe (RF-19).

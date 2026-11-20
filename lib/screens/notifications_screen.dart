@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/error_handler.dart';
 import '../core/format.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
@@ -61,7 +62,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       widget.store.setPharmacyAlerts(true);
       _snack('Avisos de farmacia activados');
     } catch (e) {
-      _snack(e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) AppErrors.show(context, e);
     }
   }
 
@@ -84,7 +85,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
       widget.store.add('Farmacia cerca', pharmacyAlertBody(demo, low));
     } catch (e) {
-      _snack(e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) AppErrors.show(context, e);
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/error_handler.dart';
 import '../core/validators.dart';
 import '../services/pharmacy_geofencing.dart';
 import '../services/pharmacy_store.dart';
@@ -125,10 +126,6 @@ class _AddPharmacyScreenState extends State<AddPharmacyScreen> {
     super.dispose();
   }
 
-  void _snack(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-  }
-
   /// Llena la latitud y la longitud con la ubicación actual del teléfono:
   /// sirve cuando estás parado frente a la farmacia.
   Future<void> _useMyLocation() async {
@@ -138,7 +135,7 @@ class _AddPharmacyScreenState extends State<AddPharmacyScreen> {
       _lat.text = pos.latitude.toStringAsFixed(6);
       _lng.text = pos.longitude.toStringAsFixed(6);
     } catch (e) {
-      _snack(e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) AppErrors.show(context, e);
     }
     if (mounted) setState(() => _locating = false);
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/error_handler.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
@@ -80,6 +81,11 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// El error desaparece en cuanto la persona empieza a corregirlo (RF-25).
+  void _clearSubmitError() {
+    if (_submitError != null) setState(() => _submitError = null);
+  }
+
   Future<void> _submit() async {
     setState(() => _submitError = null);
 
@@ -93,7 +99,18 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordCtrl.text,
     );
 
-    final result = await widget.authService.login(data);
+    LoginResult result;
+    try {
+      result = await widget.authService.login(data);
+    } catch (e) {
+      // Sin conexión u otro fallo: se avisa y el botón vuelve a estar libre.
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = AppErrors.messageFor(e);
+      });
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -169,6 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 TextFormField(
                   controller: _emailCtrl,
+                  onChanged: (_) => _clearSubmitError(),
                   keyboardType: TextInputType.emailAddress,
                   decoration: _inputDecoration('usuario@dominio.com')
                       .copyWith(prefixIcon: const Icon(Icons.mail_outline)),
@@ -183,6 +201,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 TextFormField(
                   controller: _passwordCtrl,
+                  onChanged: (_) => _clearSubmitError(),
                   obscureText: _obscurePassword,
                   decoration: _inputDecoration('••••••••').copyWith(
                     prefixIcon: const Icon(Icons.lock_outline),

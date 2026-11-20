@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/error_handler.dart';
 import '../core/format.dart';
 import '../models/medication.dart';
 import '../services/patient_store.dart';
@@ -69,9 +70,7 @@ class MedicationsTab extends StatelessWidget {
       return;
     }
     final error = store.confirmDose(next);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Toma confirmada')),
-    );
+    AppErrors.showResult(context, error: error, success: 'Toma confirmada');
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../core/error_handler.dart';
 import '../core/format.dart';
 import '../models/medication.dart';
 import '../services/patient_store.dart';
@@ -23,11 +24,15 @@ Future<void> showMedicationReminder({
   void confirm(BuildContext dialogContext) {
     final error = store.confirmDose(dose);
     Navigator.of(dialogContext).pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(error ?? 'Toma de ${dose.medication.name} confirmada'),
-      ),
-    );
+    if (error != null) {
+      AppErrors.showSnack(context, error);
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Toma de ${dose.medication.name} confirmada'),
+        ),
+      );
+    }
   }
 
   void snooze(BuildContext dialogContext) {

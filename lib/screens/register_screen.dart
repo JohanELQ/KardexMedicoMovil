@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/error_handler.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
@@ -69,6 +70,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
+  /// El error desaparece en cuanto la persona empieza a corregirlo (RF-25).
+  void _clearSubmitError() {
+    if (_submitError != null) setState(() => _submitError = null);
+  }
+
   Future<void> _submit() async {
     setState(() => _submitError = null);
 
@@ -90,7 +96,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           : null,
     );
 
-    final result = await widget.authService.register(data);
+    RegisterResult result;
+    try {
+      result = await widget.authService.register(data);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _submitError = AppErrors.messageFor(e);
+      });
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -143,6 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _label('Correo electrónico'),
                 TextFormField(
                   controller: _emailCtrl,
+                  onChanged: (_) => _clearSubmitError(),
                   keyboardType: TextInputType.emailAddress,
                   decoration: _inputDecoration('usuario@dominio.com')
                       .copyWith(prefixIcon: const Icon(Icons.mail_outline)),
@@ -154,6 +171,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 _label('Contraseña'),
                 TextFormField(
                   controller: _passwordCtrl,
+                  onChanged: (_) => _clearSubmitError(),
                   obscureText: _obscurePassword,
                   decoration: _inputDecoration('••••••••').copyWith(
                     prefixIcon: const Icon(Icons.lock_outline),
