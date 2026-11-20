@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import '../services/system_notifications.dart';
+import 'accessibility_screen.dart';
 import 'history_screen.dart';
 import 'login_screen.dart';
 import 'medical_profile_screen.dart';
@@ -113,6 +114,12 @@ class ProfileTab extends StatelessWidget {
           Icons.security_outlined,
           'Permisos del dispositivo',
           () => _open(context, const PermissionsScreen()),
+        ),
+        _item(
+          context,
+          Icons.text_fields,
+          'Accesibilidad (tamaño de letra)',
+          () => _open(context, const AccessibilityScreen()),
         ),
         _item(
           context,

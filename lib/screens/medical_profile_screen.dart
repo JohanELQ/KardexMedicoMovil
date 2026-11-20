@@ -467,7 +467,9 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(_bloodTypeError!,
-                        style: const TextStyle(color: Colors.red, fontSize: 12)),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 12)),
                   ),
                 const SizedBox(height: 20),
                 _label('Alergias (opcional)'),

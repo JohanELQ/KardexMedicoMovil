@@ -262,3 +262,10 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - Solo los contactos visibles aparecen cuando el personal médico escanea el QR.
 - Al menos un contacto debe estar siempre visible: la app no deja ocultar ni quitar el último visible.
 - Los perfiles guardados antes (con un solo contacto) se leen sin perder datos.
+
+## Accesibilidad (RNF-09)
+
+- Perfil → **Accesibilidad (tamaño de letra)**: Del sistema, Normal, Grande (+20 %) y Muy grande (+40 %).
+- Por defecto la app respeta el tamaño de letra del celular (limitado a 2×).
+- La elección se guarda en el dispositivo y se aplica a toda la app.
+- Contraste: los textos de error usan el color de error del tema (relación ≥ 4.5:1).

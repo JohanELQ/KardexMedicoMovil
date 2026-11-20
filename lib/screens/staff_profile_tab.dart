@@ -4,6 +4,7 @@ import '../core/format.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../services/scan_history_store.dart';
+import 'accessibility_screen.dart';
 import 'login_screen.dart';
 import 'scan_history_screen.dart';
 
@@ -73,9 +74,17 @@ class StaffProfileTab extends StatelessWidget {
         ),
         _item(
           context,
+          icon: Icons.text_fields,
+          label: 'Accesibilidad (tamaño de letra)',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AccessibilityScreen()),
+          ),
+        ),
+        _item(
+          context,
           icon: Icons.logout,
           label: 'Cerrar sesión',
-          color: Colors.red,
+          color: Colors.red[800],
           onTap: () => _logout(context),
         ),
       ],
