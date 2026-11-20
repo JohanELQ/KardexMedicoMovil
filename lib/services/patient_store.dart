@@ -60,18 +60,27 @@ class PatientStore extends ChangeNotifier {
       final p = data['profile'];
       if (p != null) {
         final pm = Map<String, dynamic>.from(p as Map);
-        final cm = Map<String, dynamic>.from(pm['contact'] as Map);
-        _profile = MedicalProfile(
-          fullName: (pm['fullName'] ?? '') as String,
-          age: pm['age'] as int?,
-          bloodType: pm['bloodType'] as String,
-          allergies: (pm['allergies'] ?? '') as String,
-          conditions: (pm['conditions'] ?? '') as String,
-          emergencyContact: EmergencyContact(
+        // Los perfiles guardados antes de RF-23 traen un solo 'contact'.
+        final rawContacts = (pm['contacts'] ??
+            (pm['contact'] != null ? [pm['contact']] : <dynamic>[])) as List;
+        final contacts = rawContacts.map((e) {
+          final cm = Map<String, dynamic>.from(e as Map);
+          return EmergencyContact(
             fullName: cm['fullName'] as String,
             phone: cm['phone'] as String,
-          ),
-        );
+            visible: cm['visible'] != false,
+          );
+        }).toList();
+        if (contacts.isNotEmpty) {
+          _profile = MedicalProfile(
+            fullName: (pm['fullName'] ?? '') as String,
+            age: pm['age'] as int?,
+            bloodType: pm['bloodType'] as String,
+            allergies: (pm['allergies'] ?? '') as String,
+            conditions: (pm['conditions'] ?? '') as String,
+            contacts: contacts,
+          );
+        }
       }
       _qrToken = data['qrToken'] as String?;
       _nextId = (data['nextId'] ?? 1) as int;
@@ -126,10 +135,14 @@ class PatientStore extends ChangeNotifier {
                 'bloodType': p.bloodType,
                 'allergies': p.allergies,
                 'conditions': p.conditions,
-                'contact': {
-                  'fullName': p.emergencyContact.fullName,
-                  'phone': p.emergencyContact.phone,
-                },
+                'contacts': [
+                  for (final c in p.contacts)
+                    {
+                      'fullName': c.fullName,
+                      'phone': c.phone,
+                      'visible': c.visible,
+                    },
+                ],
               },
         'qrToken': _qrToken,
         'nextId': _nextId,

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/app_user.dart';
 import 'patient_store.dart';
 
 /// Medicamento tal como lo ve el personal médico (RF-09).
@@ -32,8 +33,9 @@ class EmergencyInfo {
   final String bloodType;
   final String allergies;
   final List<String> conditions;
-  final String contactName;
-  final String contactPhone;
+
+  /// Solo los contactos que el paciente marcó como visibles (RF-23).
+  final List<EmergencyContact> contacts;
   final List<EmergencyMedication> medications;
 
   const EmergencyInfo({
@@ -45,8 +47,7 @@ class EmergencyInfo {
     required this.bloodType,
     required this.allergies,
     required this.conditions,
-    required this.contactName,
-    required this.contactPhone,
+    required this.contacts,
     required this.medications,
   });
 }
@@ -94,7 +95,19 @@ class EmergencyLookup {
         if (p == null) return null;
 
         final pm = Map<String, dynamic>.from(p as Map);
-        final cm = Map<String, dynamic>.from(pm['contact'] as Map);
+        final rawContacts = (pm['contacts'] ??
+            (pm['contact'] != null ? [pm['contact']] : <dynamic>[])) as List;
+        final contacts = rawContacts
+            .map((e) {
+              final cm = Map<String, dynamic>.from(e as Map);
+              return EmergencyContact(
+                fullName: cm['fullName'] as String,
+                phone: cm['phone'] as String,
+                visible: cm['visible'] != false,
+              );
+            })
+            .where((c) => c.visible)
+            .toList();
         final conditions = ((pm['conditions'] ?? '') as String)
             .split(',')
             .map((e) => e.trim())
@@ -119,8 +132,7 @@ class EmergencyLookup {
           bloodType: pm['bloodType'] as String,
           allergies: ((pm['allergies'] ?? '') as String).trim(),
           conditions: conditions,
-          contactName: cm['fullName'] as String,
-          contactPhone: cm['phone'] as String,
+          contacts: contacts,
           medications: meds,
         );
       }

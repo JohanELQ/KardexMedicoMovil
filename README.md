@@ -254,3 +254,11 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - Se usa en inicio de sesión, registro, recuperar contraseña, farmacias, notificaciones y confirmación de tomas. Si el servicio falla (por ejemplo sin conexión), el botón vuelve a quedar libre y se explica qué pasó, en vez de quedarse cargando.
 - El error del formulario desaparece en cuanto la persona empieza a corregir el correo o la contraseña.
 - En recuperar contraseña solo se avisa aparte un fallo de conexión; si no, siempre sale el mismo mensaje para no revelar si la cuenta existe (RF-19).
+
+## Contactos de emergencia (RF-23)
+
+- En «Perfil médico» puedes registrar hasta 5 contactos de emergencia.
+- Cada contacto tiene un interruptor **Mostrar en la ficha de emergencia**.
+- Solo los contactos visibles aparecen cuando el personal médico escanea el QR.
+- Al menos un contacto debe estar siempre visible: la app no deja ocultar ni quitar el último visible.
+- Los perfiles guardados antes (con un solo contacto) se leen sin perder datos.

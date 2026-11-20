@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/error_handler.dart';
 import '../core/format.dart';
 import '../core/validators.dart';
 import '../models/app_user.dart';
@@ -169,13 +170,17 @@ class MedicalProfileScreen extends StatelessWidget {
                     subtitle: everyHoursText(m.dosesPerDay),
                   ),
               const SizedBox(height: 20),
-              _sectionTitle('Contacto de emergencia'),
-              _itemCard(
-                icon: Icons.phone_in_talk_outlined,
-                color: Colors.orange,
-                title: profile.emergencyContact.fullName,
-                subtitle: profile.emergencyContact.phone,
-              ),
+              _sectionTitle(profile.contacts.length > 1
+                  ? 'Contactos de emergencia'
+                  : 'Contacto de emergencia'),
+              for (final c in profile.contacts)
+                _itemCard(
+                  icon: Icons.phone_in_talk_outlined,
+                  color: Colors.orange,
+                  title: c.fullName,
+                  subtitle: '${c.phone} · '
+                      '${c.visible ? 'Visible en emergencias' : 'Oculto en emergencias'}',
+                ),
             ],
           ),
         ),
@@ -287,8 +292,10 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
   final _ageCtrl = TextEditingController();
   final _allergiesCtrl = TextEditingController();
   final _conditionsCtrl = TextEditingController();
-  final _contactNameCtrl = TextEditingController();
-  final _contactPhoneCtrl = TextEditingController();
+  final List<_ContactEntry> _contacts = [];
+
+  /// Máximo de contactos de emergencia que se pueden registrar.
+  static const _maxContacts = 5;
 
   String? _bloodType;
   String? _bloodTypeError;
@@ -305,9 +312,12 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
       _ageCtrl.text = p.age?.toString() ?? '';
       _allergiesCtrl.text = p.allergies;
       _conditionsCtrl.text = p.conditions;
-      _contactNameCtrl.text = p.emergencyContact.fullName;
-      _contactPhoneCtrl.text = p.emergencyContact.phone;
+      for (final c in p.contacts) {
+        _contacts.add(_ContactEntry(
+            name: c.fullName, phone: c.phone, visible: c.visible));
+      }
     }
+    if (_contacts.isEmpty) _contacts.add(_ContactEntry());
   }
 
   @override
@@ -316,9 +326,53 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
     _ageCtrl.dispose();
     _allergiesCtrl.dispose();
     _conditionsCtrl.dispose();
-    _contactNameCtrl.dispose();
-    _contactPhoneCtrl.dispose();
+    for (final c in _contacts) {
+      c.dispose();
+    }
     super.dispose();
+  }
+
+  int get _visibleCount => _contacts.where((c) => c.visible).length;
+
+  /// RF-23: no se puede ocultar el último contacto visible.
+  void _setVisible(_ContactEntry entry, bool value) {
+    if (!value && entry.visible && _visibleCount <= 1) {
+      AppErrors.showSnack(
+        context,
+        'Al menos un contacto debe seguir visible en la ficha de '
+        'emergencia. Marca otro como visible antes de ocultar este.',
+      );
+      return;
+    }
+    setState(() => entry.visible = value);
+  }
+
+  void _addContact() {
+    if (_contacts.length >= _maxContacts) {
+      AppErrors.showSnack(context,
+          'Puedes registrar hasta $_maxContacts contactos de emergencia.');
+      return;
+    }
+    setState(() => _contacts.add(_ContactEntry()));
+  }
+
+  void _removeContact(_ContactEntry entry) {
+    if (_contacts.length <= 1) {
+      AppErrors.showSnack(
+          context, 'Debe haber al menos un contacto de emergencia.');
+      return;
+    }
+    if (entry.visible && _visibleCount <= 1) {
+      AppErrors.showSnack(
+        context,
+        'No puedes quitar el último contacto visible. Marca otro como '
+        'visible primero.',
+      );
+      return;
+    }
+    setState(() => _contacts.remove(entry));
+    // Los controladores se sueltan después de que la pantalla ya no los usa.
+    WidgetsBinding.instance.addPostFrameCallback((_) => entry.dispose());
   }
 
   void _save() {
@@ -327,16 +381,27 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
     setState(() => _bloodTypeError = bloodError);
     if (bloodError != null || !formOk) return;
 
+    final contacts = [
+      for (final c in _contacts)
+        EmergencyContact(
+          fullName: c.name.text.trim(),
+          phone: c.phone.text.trim(),
+          visible: c.visible,
+        ),
+    ];
+    if (!contacts.any((c) => c.visible)) {
+      AppErrors.showSnack(context,
+          'Al menos un contacto debe estar visible en la ficha de emergencia.');
+      return;
+    }
+
     widget.store.saveProfile(MedicalProfile(
       fullName: _nameCtrl.text.trim(),
       age: int.tryParse(_ageCtrl.text.trim()),
       bloodType: _bloodType!,
       allergies: _allergiesCtrl.text.trim(),
       conditions: _conditionsCtrl.text.trim(),
-      emergencyContact: EmergencyContact(
-        fullName: _contactNameCtrl.text.trim(),
-        phone: _contactPhoneCtrl.text.trim(),
-      ),
+      contacts: contacts,
     ));
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -422,27 +487,23 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
                   validator: Validators.freeTextMax(300),
                 ),
                 const SizedBox(height: 24),
-                Text('Contacto de emergencia (obligatorio)',
+                Text('Contactos de emergencia (obligatorio)',
                     style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  'Elige cuáles se muestran al personal médico cuando '
+                  'escanea tu QR. Al menos uno debe estar visible.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                ),
                 const SizedBox(height: 12),
-                _label('Nombre completo'),
-                TextFormField(
-                  controller: _contactNameCtrl,
-                  decoration: _decoration('Nombre del contacto'),
-                  validator: Validators.fullName,
-                  textInputAction: TextInputAction.next,
+                for (var i = 0; i < _contacts.length; i++)
+                  _contactCard(i, _contacts[i]),
+                OutlinedButton.icon(
+                  onPressed: _addContact,
+                  icon: const Icon(Icons.person_add_alt),
+                  label: const Text('Agregar otro contacto'),
                 ),
-                const SizedBox(height: 16),
-                _label('Teléfono'),
-                TextFormField(
-                  controller: _contactPhoneCtrl,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  maxLength: 10,
-                  decoration: _decoration('3001234567'),
-                  validator: Validators.phone,
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
@@ -459,6 +520,70 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
     );
   }
 
+  /// Tarjeta de un contacto: nombre, teléfono, interruptor de visibilidad
+  /// y botón para quitarlo (RF-23).
+  Widget _contactCard(int index, _ContactEntry c) {
+    return Card(
+      key: c.key,
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.grey[300]!),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Contacto ${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                IconButton(
+                  tooltip: 'Quitar contacto',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _removeContact(c),
+                ),
+              ],
+            ),
+            _label('Nombre completo'),
+            TextFormField(
+              controller: c.name,
+              decoration: _decoration('Nombre del contacto'),
+              validator: Validators.fullName,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+            _label('Teléfono'),
+            TextFormField(
+              controller: c.phone,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              maxLength: 10,
+              decoration: _decoration('3001234567'),
+              validator: Validators.phone,
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Mostrar en la ficha de emergencia'),
+              subtitle: Text(
+                c.visible
+                    ? 'Lo verá el personal médico'
+                    : 'Oculto para el personal médico',
+                style: const TextStyle(fontSize: 12),
+              ),
+              value: c.visible,
+              onChanged: (v) => _setVisible(c, v),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -470,4 +595,21 @@ class _EditMedicalProfileScreenState extends State<EditMedicalProfileScreen> {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       );
+}
+
+/// Un contacto del formulario: sus campos de texto y si es visible.
+class _ContactEntry {
+  final Key key = UniqueKey();
+  final TextEditingController name;
+  final TextEditingController phone;
+  bool visible;
+
+  _ContactEntry({String name = '', String phone = '', this.visible = true})
+      : name = TextEditingController(text: name),
+        phone = TextEditingController(text: phone);
+
+  void dispose() {
+    name.dispose();
+    phone.dispose();
+  }
 }

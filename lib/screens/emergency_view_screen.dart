@@ -118,13 +118,17 @@ class EmergencyViewScreen extends StatelessWidget {
                       : 'Horarios: ${m.times.map(formatHm12).join(' · ')}',
                 ),
             const SizedBox(height: 20),
-            _title('Contacto de emergencia'),
-            _card(
-              icon: Icons.phone_in_talk_outlined,
-              color: Colors.orange,
-              title: info.contactName,
-              subtitle: info.contactPhone,
-            ),
+            // RF-23: solo los contactos que el paciente dejó visibles.
+            _title(info.contacts.length > 1
+                ? 'Contactos de emergencia'
+                : 'Contacto de emergencia'),
+            for (final c in info.contacts)
+              _card(
+                icon: Icons.phone_in_talk_outlined,
+                color: Colors.orange,
+                title: c.fullName,
+                subtitle: c.phone,
+              ),
           ],
         ),
       ),

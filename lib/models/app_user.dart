@@ -72,6 +72,13 @@ class EmergencyContact {
     this.visible = true,
   });
 
+  EmergencyContact copyWith({String? fullName, String? phone, bool? visible}) =>
+      EmergencyContact(
+        fullName: fullName ?? this.fullName,
+        phone: phone ?? this.phone,
+        visible: visible ?? this.visible,
+      );
+
   Map<String, dynamic> toMap() => {
         'fullName': fullName,
         'phone': phone,
@@ -91,7 +98,10 @@ class MedicalProfile {
   final String bloodType;
   final String allergies;
   final String conditions;
-  final EmergencyContact emergencyContact;
+
+  /// Contactos de emergencia (RF-04, RF-23). Siempre hay al menos uno y al
+  /// menos uno está marcado como visible.
+  final List<EmergencyContact> contacts;
 
   const MedicalProfile({
     this.fullName = '',
@@ -99,8 +109,12 @@ class MedicalProfile {
     required this.bloodType,
     this.allergies = '',
     this.conditions = '',
-    required this.emergencyContact,
+    required this.contacts,
   });
+
+  /// Solo los contactos que se muestran en la vista de emergencia (RF-23).
+  List<EmergencyContact> get visibleContacts =>
+      contacts.where((c) => c.visible).toList();
 
   /// 'Diabetes tipo 2, Hipertensión' -> ['Diabetes tipo 2', 'Hipertensión'].
   List<String> get conditionsList => conditions
@@ -115,7 +129,7 @@ class MedicalProfile {
         'bloodType': bloodType,
         'allergies': allergies,
         'conditions': conditions,
-        'emergencyContact': emergencyContact.toMap(),
+        'contacts': contacts.map((c) => c.toMap()).toList(),
       };
 }
 
