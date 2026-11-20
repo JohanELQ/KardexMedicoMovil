@@ -1,30 +1,33 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:async';
+import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:kardex/main.dart';
+import 'package:kardex/core/error_handler.dart';
+import 'package:kardex/services/app_settings.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Errores de conexión (RF-25)', () {
+    test('detecta fallos de red y tiempo de espera', () {
+      expect(AppErrors.isConnectionError(TimeoutException('x')), isTrue);
+      expect(
+          AppErrors.isConnectionError(const SocketException('sin red')), isTrue);
+      expect(AppErrors.isConnectionError(StateError('otro')), isFalse);
+    });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    test('el mensaje de conexión explica qué hacer', () {
+      final msg = AppErrors.messageFor(TimeoutException('x'));
+      expect(msg.isNotEmpty, isTrue);
+    });
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  group('Tamaño de letra (RNF-09)', () {
+    test('las opciones fijas tienen factor y la del sistema no', () {
+      expect(TextSizeOption.system.factor, isNull);
+      expect(TextSizeOption.normal.factor, 1.0);
+      expect(TextSizeOption.large.factor, greaterThan(1.0));
+      expect(TextSizeOption.extraLarge.factor,
+          greaterThan(TextSizeOption.large.factor!));
+    });
   });
 }

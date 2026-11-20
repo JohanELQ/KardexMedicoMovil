@@ -243,7 +243,7 @@ class MockAuthService implements AuthService {
     _failedAttempts.remove(emailKey);
     _lockedUntil.remove(emailKey);
 
-    final roleName = account?['role'];
+    final roleName = account['role'];
     final role = UserRole.values.firstWhere(
       (r) => r.name == roleName,
       orElse: () => UserRole.paciente,
