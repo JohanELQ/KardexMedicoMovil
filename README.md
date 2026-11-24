@@ -255,17 +255,11 @@ RF-23 (varios contactos de emergencia), almacenamiento persistente
 - El error del formulario desaparece en cuanto la persona empieza a corregir el correo o la contraseña.
 - En recuperar contraseña solo se avisa aparte un fallo de conexión; si no, siempre sale el mismo mensaje para no revelar si la cuenta existe (RF-19).
 
-## Contactos de emergencia (RF-23)
+## Farmacias cerca con la app cerrada (RF-17, RNF-05, RNF-07)
 
-- En «Perfil médico» puedes registrar hasta 5 contactos de emergencia.
-- Cada contacto tiene un interruptor **Mostrar en la ficha de emergencia**.
-- Solo los contactos visibles aparecen cuando el personal médico escanea el QR.
-- Al menos un contacto debe estar siempre visible: la app no deja ocultar ni quitar el último visible.
-- Los perfiles guardados antes (con un solo contacto) se leen sin perder datos.
-
-## Accesibilidad (RNF-09)
-
-- Perfil → **Accesibilidad (tamaño de letra)**: Del sistema, Normal, Grande (+20 %) y Muy grande (+40 %).
-- Por defecto la app respeta el tamaño de letra del celular (limitado a 2×).
-- La elección se guarda en el dispositivo y se aplica a toda la app.
-- Contraste: los textos de error usan el color de error del tema (relación ≥ 4.5:1).
+- Cada farmacia se registra en la **Geofencing API de Google Play Services** (paquete `native_geofence`). El sistema vigila las zonas con muy poco consumo de batería; no hay GPS encendido todo el tiempo.
+- Cuando el paciente entra al radio de una farmacia, Android despierta la app aunque esté en segundo plano o cerrada. Si le queda poco de algún medicamento, llega una notificación y también queda en la campana (RF-18: máximo un aviso por farmacia cada 24 horas).
+- Para que funcione hace falta el permiso de ubicación **«Permitir todo el tiempo»** (Android 10 o superior). Se pide al activar los avisos en *Notificaciones* o desde *Perfil → Permisos del dispositivo → Ubicación todo el tiempo*.
+- Si se agregan o quitan farmacias, o se desactivan los avisos, las zonas se actualizan solas. Al cerrar sesión se quitan.
+- Solo Android. En el navegador sigue la revisión con la app abierta.
+- Nota para probar: el emulador no dispara estos eventos si ninguna otra app usa la ubicación; conviene probar en un celular real.

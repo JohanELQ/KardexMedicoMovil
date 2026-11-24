@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import '../services/system_notifications.dart';
+import '../services/background_geofencing.dart';
 import 'accessibility_screen.dart';
 import 'history_screen.dart';
 import 'login_screen.dart';
@@ -38,6 +39,7 @@ class ProfileTab extends StatelessWidget {
   void _logout(BuildContext context) {
     // Los avisos del sistema son de esta cuenta: se quitan al salir.
     SystemNotifications.instance.cancelAll();
+    BackgroundGeofencing.instance.stop();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => LoginScreen(authService: authService),

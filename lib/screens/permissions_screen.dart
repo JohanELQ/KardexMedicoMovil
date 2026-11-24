@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../services/background_geofencing.dart';
+
 /// Permisos del dispositivo (mockup 17, RF-22): muestra el estado de
 /// cámara, ubicación y notificaciones, y permite activarlos o abrir los
 /// ajustes del celular para cambiarlos.
@@ -36,6 +38,13 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       Icons.location_on_outlined,
       'Ubicación',
       'Necesaria para avisarte cuando estés cerca de una farmacia.',
+    ),
+    _PermissionInfo(
+      Permission.locationAlways,
+      Icons.my_location_outlined,
+      'Ubicación todo el tiempo',
+      'Para avisarte de una farmacia cercana con la app cerrada. '
+          'Elige «Permitir todo el tiempo».',
     ),
     _PermissionInfo(
       Permission.notification,
@@ -87,7 +96,15 @@ class _PermissionsScreenState extends State<PermissionsScreen>
       return;
     }
     try {
+      // Android pide primero la ubicación normal y después la de siempre.
+      if (item.permission == Permission.locationAlways &&
+          !(await Permission.locationWhenInUse.isGranted)) {
+        await Permission.locationWhenInUse.request();
+      }
       _status[item.permission] = await item.permission.request();
+      if (item.permission == Permission.locationAlways) {
+        BackgroundGeofencing.instance.resync();
+      }
     } catch (_) {}
     if (mounted) setState(() {});
   }

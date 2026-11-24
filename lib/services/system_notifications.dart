@@ -157,6 +157,20 @@ class SystemNotifications {
     } catch (_) {}
   }
 
+  /// Aviso de farmacia cercana (RF-18), también desde segundo plano.
+  Future<void> showPharmacyAlert(String body) async {
+    if (!_supported) return;
+    try {
+      await init();
+      await _plugin.show(
+        kSnoozeIdBase + 95000 + (DateTime.now().millisecond % 1000),
+        'Farmacia cerca',
+        body,
+        _details(AlertKind.lowStock),
+      );
+    } catch (_) {}
+  }
+
   /// Muestra un aviso inmediato corto (confirmación de una acción).
   Future<void> _showNow(String title, String body) async {
     try {

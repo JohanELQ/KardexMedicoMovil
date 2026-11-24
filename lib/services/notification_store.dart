@@ -77,6 +77,10 @@ class NotificationStore extends ChangeNotifier {
 
   String get _key => '$_prefix$uid';
 
+  /// Vuelve a leer lo guardado: un aviso pudo llegar en segundo plano
+  /// mientras la app estaba cerrada.
+  Future<void> reload() => _load();
+
   @override
   void dispose() {
     _disposed = true;

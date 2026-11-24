@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/app_user.dart';
 import '../services/auth_service.dart';
 import '../core/format.dart';
+import '../services/background_geofencing.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
 import '../services/pharmacy_geofencing.dart';
@@ -59,6 +60,12 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     _store.addListener(_syncSystemAlerts);
     // RF-14: si cambia el umbral de días, se reprograman los avisos de stock.
     _notifs.addListener(_syncSystemAlerts);
+    // RF-17: las farmacias se registran en el sistema para vigilarlas con
+    // la app en segundo plano; se actualizan si cambian las farmacias o si
+    // se activan o desactivan los avisos.
+    PharmacyStore.instance.addListener(_syncGeofences);
+    _notifs.addListener(_syncGeofences);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncGeofences());
     SystemNotifications.storageChanges.addListener(_onStorageChanged);
     SystemNotifications.instance.requestPermission();
     _geofencing.loadHistory();
@@ -72,6 +79,8 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _store.removeListener(_syncSystemAlerts);
     _notifs.removeListener(_syncSystemAlerts);
+    PharmacyStore.instance.removeListener(_syncGeofences);
+    _notifs.removeListener(_syncGeofences);
     SystemNotifications.storageChanges.removeListener(_onStorageChanged);
     _reminderTimer?.cancel();
     _store.dispose();
@@ -83,7 +92,20 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   /// toma desde la notificación mientras estaba cerrada.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _store.reload();
+    if (state == AppLifecycleState.resumed) {
+      _store.reload();
+      _notifs.reload();
+      // Puede haberse concedido el permiso en los ajustes del celular.
+      _syncGeofences();
+    }
+  }
+
+  void _syncGeofences() {
+    BackgroundGeofencing.instance.sync(
+      uid: widget.user.uid,
+      enabled: _notifs.pharmacyAlerts,
+      pharmacies: PharmacyStore.instance.pharmacies,
+    );
   }
 
   void _onStorageChanged() => _store.reload();
@@ -147,6 +169,9 @@ class _PatientHomeScreenState extends State<PatientHomeScreen>
   /// app abierta) si está cerca de una farmacia.
   Future<void> _checkPharmacies(DateTime now) async {
     if (!_notifs.pharmacyAlerts || _checkingPharmacies) return;
+    // Si el sistema ya vigila las farmacias en segundo plano, no hace
+    // falta consultar la ubicación desde aquí.
+    if (BackgroundGeofencing.instance.active) return;
     final last = _lastPharmacyCheck;
     if (last != null && now.difference(last) < const Duration(minutes: 2)) {
       return;

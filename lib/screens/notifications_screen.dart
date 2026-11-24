@@ -4,6 +4,7 @@ import '../core/error_handler.dart';
 import '../core/format.dart';
 import '../services/notification_store.dart';
 import '../services/patient_store.dart';
+import '../services/background_geofencing.dart';
 import '../services/pharmacy_geofencing.dart';
 import 'pharmacies_screen.dart';
 
@@ -61,6 +62,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await PharmacyGeofencing().getCurrentPosition();
       widget.store.setPharmacyAlerts(true);
       _snack('Avisos de farmacia activados');
+      // RF-17: para avisar con la app cerrada Android pide «Permitir todo
+      // el tiempo». Si no se concede, los avisos siguen con la app abierta.
+      final background = await BackgroundGeofencing.instance.requestPermission();
+      if (background) {
+        BackgroundGeofencing.instance.resync();
+      } else if (mounted) {
+        _snack('Para avisarte con la app cerrada, en Ubicación elige '
+            '«Permitir todo el tiempo».');
+      }
     } catch (e) {
       if (mounted) AppErrors.show(context, e);
     }

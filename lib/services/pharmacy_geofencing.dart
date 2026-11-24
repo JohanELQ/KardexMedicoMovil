@@ -76,9 +76,10 @@ class PharmacyGeofencing {
   final Map<String, DateTime> _lastNotified = {};
 
   /// Carga el registro de avisos ya hechos. Llamar una vez al iniciar.
-  Future<void> loadHistory() async {
+  Future<void> loadHistory({bool reload = false}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (reload) await prefs.reload();
       final raw = prefs.getString(_historyKey);
       if (raw == null || raw.isEmpty) return;
       final data = Map<String, dynamic>.from(jsonDecode(raw) as Map);
@@ -103,6 +104,22 @@ class PharmacyGeofencing {
     } catch (_) {
       // Un fallo al guardar no debe romper el aviso.
     }
+  }
+
+  /// Usado por el aviso en segundo plano (RF-18): devuelve true y anota
+  /// el aviso si esa farmacia no avisó en las últimas 24 horas. Vuelve a
+  /// leer lo guardado porque la app abierta puede haber avisado antes.
+  Future<bool> claimNotification(String pharmacyId, {DateTime? now}) async {
+    final at = now ?? DateTime.now();
+    _lastNotified.clear();
+    await loadHistory(reload: true);
+    final last = _lastNotified[pharmacyId];
+    if (last != null && at.difference(last) < const Duration(hours: 24)) {
+      return false;
+    }
+    _lastNotified[pharmacyId] = at;
+    await _saveHistory();
+    return true;
   }
 
   /// Pide el permiso de ubicación si hace falta y devuelve la posición.
