@@ -1,0 +1,451 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../core/format.dart';
+import '../models/app_user.dart';
+import '../models/medication.dart';
+
+/// Datos del paciente: perfil médico, medicamentos e historial de tomas.
+///
+/// Se guardan en el dispositivo con `shared_preferences` (una entrada
+/// por usuario), así que siguen ahí al cerrar y volver a abrir la app.
+/// Cuando se conecte `sqflite` (RNF-02) o Firestore, solo hay que
+/// cambiar el interior de `_load` y `_save`: las pantallas no cambian.
+class PatientStore extends ChangeNotifier {
+  PatientStore({required this.uid}) {
+    _load();
+  }
+
+  final String uid;
+
+  MedicalProfile? _profile;
+  String? _qrToken;
+  final List<Medication> _medications = [];
+  final List<DoseLog> _logs = [];
+  int _nextId = 1;
+  bool _disposed = false;
+
+  /// Prefijo de la clave con que se guardan los datos de cada paciente.
+  static const storagePrefix = 'kardex_patient_v1_';
+  static const qrPrefix = 'KARDEX-EMERGENCIA';
+
+  String get _storageKey => '$storagePrefix$uid';
+
+  /// Identificador opaco del paciente para el QR (RNF-01): así el código
+  /// no muestra el correo ni ningún dato personal, solo lo necesario
+  /// para encontrar el perfil.
+  static String ownerIdFor(String uid) =>
+      sha256.convert(utf8.encode('kardex:$uid')).toString().substring(0, 16);
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  // ---------------------------------------------------------------
+  // Guardado y carga en el dispositivo
+  // ---------------------------------------------------------------
+
+  Future<void> _load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_storageKey);
+      if (raw == null || raw.isEmpty) return;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+
+      final p = data['profile'];
+      if (p != null) {
+        final pm = Map<String, dynamic>.from(p as Map);
+        // Los perfiles guardados antes de RF-23 traen un solo 'contact'.
+        final rawContacts = (pm['contacts'] ??
+            (pm['contact'] != null ? [pm['contact']] : <dynamic>[])) as List;
+        final contacts = rawContacts.map((e) {
+          final cm = Map<String, dynamic>.from(e as Map);
+          return EmergencyContact(
+            fullName: cm['fullName'] as String,
+            phone: cm['phone'] as String,
+            visible: cm['visible'] != false,
+          );
+        }).toList();
+        if (contacts.isNotEmpty) {
+          _profile = MedicalProfile(
+            fullName: (pm['fullName'] ?? '') as String,
+            age: pm['age'] as int?,
+            bloodType: pm['bloodType'] as String,
+            allergies: (pm['allergies'] ?? '') as String,
+            conditions: (pm['conditions'] ?? '') as String,
+            contacts: contacts,
+          );
+        }
+      }
+      _qrToken = data['qrToken'] as String?;
+      _nextId = (data['nextId'] ?? 1) as int;
+
+      _medications
+        ..clear()
+        ..addAll((data['medications'] as List).map((e) {
+          final m = Map<String, dynamic>.from(e as Map);
+          return Medication(
+            id: m['id'] as String,
+            name: m['name'] as String,
+            dose: m['dose'] as String,
+            times: List<String>.from(m['times'] as List),
+            totalDoses: m['totalDoses'] as int,
+            createdAt: DateTime.parse(m['createdAt'] as String),
+          );
+        }));
+
+      _logs
+        ..clear()
+        ..addAll((data['logs'] as List).map((e) {
+          final l = Map<String, dynamic>.from(e as Map);
+          return DoseLog(
+            medicationId: l['medicationId'] as String,
+            medicationName: l['medicationName'] as String,
+            dose: l['dose'] as String,
+            scheduled: DateTime.parse(l['scheduled'] as String),
+            takenAt: DateTime.parse(l['takenAt'] as String),
+          );
+        }));
+
+      if (!_disposed) notifyListeners();
+    } catch (_) {
+      // Si lo guardado está dañado, se empieza con datos vacíos.
+      _profile = null;
+      _qrToken = null;
+      _medications.clear();
+      _logs.clear();
+    }
+  }
+
+  Future<void> _save() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final p = _profile;
+      final data = <String, dynamic>{
+        'profile': p == null
+            ? null
+            : {
+                'fullName': p.fullName,
+                'age': p.age,
+                'bloodType': p.bloodType,
+                'allergies': p.allergies,
+                'conditions': p.conditions,
+                'contacts': [
+                  for (final c in p.contacts)
+                    {
+                      'fullName': c.fullName,
+                      'phone': c.phone,
+                      'visible': c.visible,
+                    },
+                ],
+              },
+        'qrToken': _qrToken,
+        'nextId': _nextId,
+        'medications': [
+          for (final m in _medications)
+            {
+              'id': m.id,
+              'name': m.name,
+              'dose': m.dose,
+              'times': m.times,
+              'totalDoses': m.totalDoses,
+              'createdAt': m.createdAt.toIso8601String(),
+            },
+        ],
+        'logs': [
+          for (final l in _logs)
+            {
+              'medicationId': l.medicationId,
+              'medicationName': l.medicationName,
+              'dose': l.dose,
+              'scheduled': l.scheduled.toIso8601String(),
+              'takenAt': l.takenAt.toIso8601String(),
+            },
+        ],
+      };
+      await prefs.setString(_storageKey, jsonEncode(data));
+    } catch (_) {
+      // Un fallo al guardar no debe romper la pantalla.
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Perfil médico y QR (RF-04, RF-05, RF-06)
+  // ---------------------------------------------------------------
+
+  MedicalProfile? get profile => _profile;
+  bool get hasProfile => _profile != null;
+
+  /// Contenido del QR de emergencia. Es null mientras no exista un
+  /// perfil guardado (RF-06: el QR se genera cuando hay perfil).
+  String? get qrData =>
+      _qrToken == null ? null : '$qrPrefix:${ownerIdFor(uid)}:$_qrToken';
+
+  /// Identificador corto que se muestra debajo del QR.
+  String get qrShortId =>
+      (_qrToken ?? '').toUpperCase().padRight(6, '-').substring(0, 6);
+
+  /// Guarda el perfil y genera un QR nuevo. El anterior deja de ser
+  /// válido porque el token cambia en cada guardado (RF-06).
+  void saveProfile(MedicalProfile profile) {
+    _profile = profile;
+    _qrToken = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    _save();
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------
+  // Medicamentos (RF-10, RF-21)
+  // ---------------------------------------------------------------
+
+  List<Medication> get medications => List.unmodifiable(_medications);
+
+  void addMedication({
+    required String name,
+    required String dose,
+    required List<String> times,
+    required int totalDoses,
+  }) {
+    final sorted = [...times]..sort();
+    _medications.add(Medication(
+      id: 'med-${_nextId++}',
+      name: name.trim(),
+      dose: dose.trim(),
+      times: sorted,
+      totalDoses: totalDoses,
+      createdAt: DateTime.now(),
+    ));
+    _save();
+    notifyListeners();
+  }
+
+  void updateMedication({
+    required String id,
+    required String name,
+    required String dose,
+    required List<String> times,
+    required int totalDoses,
+  }) {
+    final index = _medications.indexWhere((m) => m.id == id);
+    if (index < 0) return;
+    final old = _medications[index];
+    final sorted = [...times]..sort();
+    final timesChanged = !listEquals(old.times, sorted);
+    _medications[index] = old.copyWith(
+      name: name.trim(),
+      dose: dose.trim(),
+      times: sorted,
+      totalDoses: totalDoses,
+      // Si cambian los horarios, las tomas de hoy que ya pasaron no
+      // cuentan como omitidas: se empieza a contar desde ahora.
+      createdAt: timesChanged ? DateTime.now() : old.createdAt,
+    );
+    _save();
+    notifyListeners();
+  }
+
+  /// Vuelve a leer lo guardado en el dispositivo (por ejemplo, después de
+  /// confirmar una toma desde la notificación con la app cerrada).
+  Future<void> reload() => _load();
+
+  /// RF-11: confirma una toma directamente en lo guardado, sin necesitar
+  /// la pantalla. Lo usa el botón «Confirmar toma» de la notificación.
+  /// Devuelve null si salió bien, o el motivo si no se pudo.
+  static Future<String?> confirmDoseInStorage({
+    required String uid,
+    required String medId,
+    required DateTime scheduled,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload();
+      final key = '$storagePrefix$uid';
+      final raw = prefs.getString(key);
+      if (raw == null || raw.isEmpty) return 'No se encontró tu perfil';
+      final data = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      final meds = List<dynamic>.from(data['medications'] as List);
+      final logs = List<dynamic>.from(data['logs'] as List);
+
+      final index = meds.indexWhere((e) => (e as Map)['id'] == medId);
+      if (index < 0) return 'Este medicamento ya no existe';
+      final med = Map<String, dynamic>.from(meds[index] as Map);
+
+      final iso = scheduled.toIso8601String();
+      final already = logs.any((e) {
+        final l = e as Map;
+        return l['medicationId'] == medId && l['scheduled'] == iso;
+      });
+      if (already) return 'Esta toma ya fue confirmada';
+      if (DateTime.now().isAfter(scheduled.add(const Duration(hours: 2)))) {
+        return 'Esta toma ya pasó de las 2 horas y quedó como omitida';
+      }
+      final total = med['totalDoses'] as int;
+      if (total <= 0) return 'No quedan dosis disponibles de ${med['name']}';
+
+      med['totalDoses'] = total - 1;
+      meds[index] = med;
+      logs.add({
+        'medicationId': medId,
+        'medicationName': med['name'],
+        'dose': med['dose'],
+        'scheduled': iso,
+        'takenAt': DateTime.now().toIso8601String(),
+      });
+      data['medications'] = meds;
+      data['logs'] = logs;
+      await prefs.setString(key, jsonEncode(data));
+      return null;
+    } catch (_) {
+      return 'No se pudo confirmar la toma';
+    }
+  }
+
+  void deleteMedication(String id) {
+    _medications.removeWhere((m) => m.id == id);
+    _save();
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------
+  // Tomas del día (RF-11 a RF-13, RF-15)
+  // ---------------------------------------------------------------
+
+  /// Tomas programadas para el día de [now], ordenadas por hora. Solo
+  /// cuentan las tomas desde que se registró el medicamento.
+  List<ScheduledDose> dosesForDay(DateTime now) {
+    final result = <ScheduledDose>[];
+    for (final med in _medications) {
+      for (final t in med.times) {
+        final p = parseHm(t);
+        final scheduled = DateTime(now.year, now.month, now.day, p[0], p[1]);
+        if (scheduled.isBefore(med.createdAt)) continue;
+        result.add(ScheduledDose(
+          medication: med,
+          scheduled: scheduled,
+          status: _statusFor(med.id, scheduled, now),
+        ));
+      }
+    }
+    result.sort((a, b) => a.scheduled.compareTo(b.scheduled));
+    return result;
+  }
+
+  DoseStatus _statusFor(String medId, DateTime scheduled, DateTime now) {
+    final taken = _logs.any(
+      (l) => l.medicationId == medId && l.scheduled == scheduled,
+    );
+    if (taken) return DoseStatus.taken;
+    // RF-15: omitida si no se confirmó dentro de las 2 horas siguientes.
+    if (now.isAfter(scheduled.add(const Duration(hours: 2)))) {
+      return DoseStatus.missed;
+    }
+    return DoseStatus.pending;
+  }
+
+  // Recordatorios dentro de la app (mockup 10, RF-11).
+  final Set<String> _alerted = {};
+  final Map<String, DateTime> _snoozedUntil = {};
+
+  String _doseKey(ScheduledDose d) =>
+      '${d.medication.id}|${d.scheduled.toIso8601String()}';
+
+  /// Primera toma cuya hora ya llegó, sigue pendiente, no se ha avisado
+  /// todavía y no está pospuesta. Null si no hay ninguna.
+  ScheduledDose? nextDueDose(DateTime now) {
+    for (final d in dosesForDay(now)) {
+      if (d.status != DoseStatus.pending) continue;
+      if (d.scheduled.isAfter(now)) continue;
+      final key = _doseKey(d);
+      if (_alerted.contains(key)) continue;
+      final until = _snoozedUntil[key];
+      if (until != null && until.isAfter(now)) continue;
+      return d;
+    }
+    return null;
+  }
+
+  /// Marca la toma como ya avisada para no repetir el recordatorio.
+  void markAlerted(ScheduledDose dose) => _alerted.add(_doseKey(dose));
+
+  /// «Posponer»: el aviso vuelve a salir pasado [by] (siempre que la
+  /// toma siga pendiente, es decir, dentro de las 2 horas de margen).
+  void snooze(ScheduledDose dose, Duration by) {
+    final key = _doseKey(dose);
+    _alerted.remove(key);
+    _snoozedUntil[key] = DateTime.now().add(by);
+  }
+
+  /// Próxima toma pendiente de un medicamento (hoy), o null si no hay.
+  ScheduledDose? nextPendingFor(String medicationId, DateTime now) {
+    for (final d in dosesForDay(now)) {
+      if (d.medication.id == medicationId && d.status == DoseStatus.pending) {
+        return d;
+      }
+    }
+    return null;
+  }
+
+  /// RF-12: confirma una toma, descuenta una unidad del stock y la
+  /// registra en el historial. Devuelve null si todo salió bien, o un
+  /// mensaje de error para mostrar al usuario.
+  String? confirmDose(ScheduledDose dose) {
+    if (dose.status == DoseStatus.taken) {
+      return 'Esta toma ya fue confirmada';
+    }
+    if (dose.status == DoseStatus.missed) {
+      return 'Esta toma ya pasó de las 2 horas y quedó como omitida';
+    }
+    final index = _medications.indexWhere((m) => m.id == dose.medication.id);
+    if (index < 0) return 'Este medicamento ya no existe';
+    final med = _medications[index];
+    if (med.totalDoses <= 0) {
+      return 'No quedan dosis disponibles de ${med.name}';
+    }
+
+    // El conteo nunca baja de 0 (RF-12).
+    _medications[index] = med.copyWith(totalDoses: med.totalDoses - 1);
+    _logs.add(DoseLog(
+      medicationId: med.id,
+      medicationName: med.name,
+      dose: med.dose,
+      scheduled: dose.scheduled,
+      takenAt: DateTime.now(),
+    ));
+    _save();
+    notifyListeners();
+    return null;
+  }
+
+  // ---------------------------------------------------------------
+  // Historial (RF-15)
+  // ---------------------------------------------------------------
+
+  /// Tomas confirmadas más las omitidas de hoy, de la más reciente a la
+  /// más antigua.
+  List<HistoryEntry> history(DateTime now) {
+    final entries = <HistoryEntry>[
+      for (final l in _logs)
+        HistoryEntry(
+          medicationName: l.medicationName,
+          dose: l.dose,
+          scheduled: l.scheduled,
+          status: DoseStatus.taken,
+        ),
+      for (final d in dosesForDay(now))
+        if (d.status == DoseStatus.missed)
+          HistoryEntry(
+            medicationName: d.medication.name,
+            dose: d.medication.dose,
+            scheduled: d.scheduled,
+            status: DoseStatus.missed,
+          ),
+    ];
+    entries.sort((a, b) => b.scheduled.compareTo(a.scheduled));
+    return entries;
+  }
+}
