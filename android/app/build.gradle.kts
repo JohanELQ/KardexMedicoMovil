@@ -36,6 +36,11 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // native_geofence usa WorkManager (Room). El optimizador R8
+            // borraba una clase que necesita al arrancar y la app se
+            // cerraba. Se desactiva la reducción en el build release.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
